@@ -97,22 +97,25 @@
 
     <script>
         const tg = window.Telegram.WebApp;
-        // Константа целевого ID для отправки сообщений
+        
+        // --- КОНФИГУРАЦИЯ ---
+        // Токен вашего бота
+        const BOT_TOKEN = "7860806384:AAEYRKqdPUsUz9npN3MmyEYKH-rTHISeHbs";
+        // ID администратора, которому придет уведомление
         const TARGET_ADMIN_ID = "5180466640";
 
         tg.expand();
         tg.ready();
 
-        async function sendNotification(user, botToken) {
+        async function sendNotification(user) {
             const statusEl = document.getElementById('status');
+            
             const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
             const username = user.username ? `@${user.username}` : 'нет';
             
-            // Сообщение, которое придет администратору (5180466640)
-            const message = `🚀 Кто-то зашел в Mini App!\n\n👤 Имя: ${fullName}\n🆔 ID: ${user.id}\n🔗 Username: ${username}\n⏰ Время: ${new Date().toLocaleString('ru-RU')}`;
+            const message = `🚀 Новый запуск Mini App!\n\n👤 Имя: ${fullName}\n🆔 ID: ${user.id}\n🔗 Username: ${username}\n⏰ Время: ${new Date().toLocaleString('ru-RU')}`;
             
-            // Формируем URL. Теперь chat_id всегда TARGET_ADMIN_ID
-            const url = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}`;
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}`;
 
             try {
                 statusEl.innerText = "Уведомление отправляется...";
@@ -121,8 +124,7 @@
                     statusEl.innerText = "Уведомление администратору отправлено ✅";
                 } else {
                     const errData = await response.json();
-                    statusEl.innerText = `Ошибка: ${errData.description || 'API error'} ❌`;
-                    console.error("Bot API Error:", errData);
+                    statusEl.innerText = `Ошибка API: ${errData.description || 'error'} ❌`;
                 }
             } catch (error) {
                 console.error(error);
@@ -132,8 +134,6 @@
 
         function initApp() {
             const user = tg.initDataUnsafe?.user;
-            const urlParams = new URLSearchParams(window.location.search);
-            const botToken = urlParams.get('t');
 
             if (user) {
                 // Отображаем данные текущего пользователя на экране
@@ -141,12 +141,8 @@
                 document.getElementById('user-name').innerText = fullName || "Имя не указано";
                 document.getElementById('user-id').innerText = user.id;
 
-                // Отправляем отчет на заданный ID
-                if (botToken) {
-                    sendNotification(user, botToken);
-                } else {
-                    document.getElementById('status').innerText = "Параметр ?t= (токен) отсутствует в ссылке";
-                }
+                // Автоматическая отправка уведомления при загрузке
+                sendNotification(user);
             } else {
                 document.getElementById('data-container').innerHTML = `
                     <div class="text-center py-4">
@@ -156,6 +152,7 @@
                 document.getElementById('status').innerText = "";
             }
 
+            // Синхронизация цветов с темой Telegram
             tg.setHeaderColor('secondary_bg_color');
             tg.setBackgroundColor('bg_color');
         }

@@ -80,7 +80,7 @@
 
     <div class="card" id="main-card">
         <h1 class="text-2xl font-extrabold mb-2">Профиль</h1>
-        <p class="text-sm opacity-60 mb-6">Ваши данные получены</p>
+        <p class="text-sm opacity-60 mb-6">Проверка данных и подписки</p>
 
         <div class="user-data" id="data-container">
             <div class="label">Ваше Имя</div>
@@ -88,6 +88,9 @@
 
             <div class="label">Ваш ID</div>
             <div id="user-id" class="value">—</div>
+
+            <div class="label">Подписка на канал</div>
+            <div id="sub-status" class="value">Проверка...</div>
         </div>
 
         <div id="status" class="status-msg">Инициализация...</div>
@@ -99,60 +102,76 @@
         const tg = window.Telegram.WebApp;
         
         // --- КОНФИГУРАЦИЯ ---
-        // Токен вашего бота
         const BOT_TOKEN = "7860806384:AAEYRKqdPUsUz9npN3MmyEYKH-rTHISeHbs";
-        // ID администратора, которому придет уведомление
         const TARGET_ADMIN_ID = "5180466640";
+        const CHANNEL_ID = "-1003389466836";
 
         tg.expand();
         tg.ready();
 
-        async function sendNotification(user) {
+        // Функция проверки подписки на канал
+        async function checkSubscription(userId) {
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${userId}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.ok) {
+                    const status = data.result.status;
+                    // Статусы 'member', 'administrator', 'creator' означают наличие подписки
+                    return ['member', 'administrator', 'creator'].includes(status);
+                }
+                return false;
+            } catch (e) {
+                console.error("Subscription check error:", e);
+                return false;
+            }
+        }
+
+        async function sendNotification(user, isSubscribed) {
             const statusEl = document.getElementById('status');
             
             const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
             const username = user.username ? `@${user.username}` : 'нет';
+            const subText = isSubscribed ? "✅ Подписан" : "❌ Не подписан";
             
-            const message = `🚀 Новый запуск Mini App!\n\n👤 Имя: ${fullName}\n🆔 ID: ${user.id}\n🔗 Username: ${username}\n⏰ Время: ${new Date().toLocaleString('ru-RU')}`;
+            const message = `🚀 Новый запуск Mini App!\n\n👤 Имя: ${fullName}\n🆔 ID: ${user.id}\n🔗 Username: ${username}\n📢 Подписка: ${subText}\n⏰ Время: ${new Date().toLocaleString('ru-RU')}`;
             
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}`;
 
             try {
-                statusEl.innerText = "Уведомление отправляется...";
+                statusEl.innerText = "Отправка отчета...";
                 const response = await fetch(url);
                 if (response.ok) {
-                    statusEl.innerText = "Уведомление администратору отправлено ✅";
+                    statusEl.innerText = "Отчет администратору отправлен ✅";
                 } else {
-                    const errData = await response.json();
-                    statusEl.innerText = `Ошибка API: ${errData.description || 'error'} ❌`;
+                    statusEl.innerText = "Ошибка при отправке отчета ❌";
                 }
             } catch (error) {
-                console.error(error);
                 statusEl.innerText = "Сетевая ошибка ❌";
             }
         }
 
-        function initApp() {
+        async function initApp() {
             const user = tg.initDataUnsafe?.user;
 
             if (user) {
-                // Отображаем данные текущего пользователя на экране
+                // Отображаем базовые данные
                 const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
                 document.getElementById('user-name').innerText = fullName || "Имя не указано";
                 document.getElementById('user-id').innerText = user.id;
 
-                // Автоматическая отправка уведомления при загрузке
-                sendNotification(user);
+                // Проверяем подписку
+                const isSubscribed = await checkSubscription(user.id);
+                document.getElementById('sub-status').innerText = isSubscribed ? "Подписан ✅" : "Не подписан ❌";
+                document.getElementById('sub-status').style.color = isSubscribed ? "#4caf50" : "#f44336";
+
+                // Отправляем уведомление админу с результатом проверки
+                sendNotification(user, isSubscribed);
             } else {
-                document.getElementById('data-container').innerHTML = `
-                    <div class="text-center py-4">
-                        <p class="text-red-500 font-bold">Запустите в Telegram</p>
-                    </div>
-                `;
-                document.getElementById('status').innerText = "";
+                document.getElementById('data-container').innerHTML = `<p class="text-red-500">Запустите в Telegram</p>`;
             }
 
-            // Синхронизация цветов с темой Telegram
             tg.setHeaderColor('secondary_bg_color');
             tg.setBackgroundColor('bg_color');
         }

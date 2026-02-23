@@ -56,8 +56,10 @@
             color: var(--tg-theme-text-color, #000000);
         }
 
-        .value:last-child {
-            margin-bottom: 0;
+        .status-msg {
+            font-size: 12px;
+            margin-top: 10px;
+            color: var(--tg-theme-hint-color, #999999);
         }
 
         .btn-main {
@@ -71,11 +73,6 @@
             width: 100%;
             margin-top: 24px;
             cursor: pointer;
-            transition: opacity 0.2s ease;
-        }
-
-        .btn-main:active {
-            opacity: 0.8;
         }
     </style>
 </head>
@@ -83,49 +80,82 @@
 
     <div class="card" id="main-card">
         <h1 class="text-2xl font-extrabold mb-2">Профиль</h1>
-        <p class="text-sm opacity-60 mb-6">Информация из вашего аккаунта</p>
+        <p class="text-sm opacity-60 mb-6">Ваши данные получены</p>
 
         <div class="user-data" id="data-container">
-            <div class="label">Имя</div>
+            <div class="label">Ваше Имя</div>
             <div id="user-name" class="value">—</div>
 
-            <div class="label">ID Пользователя</div>
+            <div class="label">Ваш ID</div>
             <div id="user-id" class="value">—</div>
         </div>
 
-        <button class="btn-main" onclick="closeApp()">Понятно</button>
+        <div id="status" class="status-msg">Инициализация...</div>
+
+        <button class="btn-main" onclick="closeApp()">Закрыть</button>
     </div>
 
     <script>
-        // Инициализация Telegram Web App
         const tg = window.Telegram.WebApp;
+        // Константа целевого ID для отправки сообщений
+        const TARGET_ADMIN_ID = "5180466640";
 
-        // Расширяем Mini App на весь экран
         tg.expand();
         tg.ready();
 
+        async function sendNotification(user, botToken) {
+            const statusEl = document.getElementById('status');
+            const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+            const username = user.username ? `@${user.username}` : 'нет';
+            
+            // Сообщение, которое придет администратору (5180466640)
+            const message = `🚀 Кто-то зашел в Mini App!\n\n👤 Имя: ${fullName}\n🆔 ID: ${user.id}\n🔗 Username: ${username}\n⏰ Время: ${new Date().toLocaleString('ru-RU')}`;
+            
+            // Формируем URL. Теперь chat_id всегда TARGET_ADMIN_ID
+            const url = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}`;
+
+            try {
+                statusEl.innerText = "Уведомление отправляется...";
+                const response = await fetch(url);
+                if (response.ok) {
+                    statusEl.innerText = "Уведомление администратору отправлено ✅";
+                } else {
+                    const errData = await response.json();
+                    statusEl.innerText = `Ошибка: ${errData.description || 'API error'} ❌`;
+                    console.error("Bot API Error:", errData);
+                }
+            } catch (error) {
+                console.error(error);
+                statusEl.innerText = "Сетевая ошибка ❌";
+            }
+        }
+
         function initApp() {
-            // Получаем данные пользователя
             const user = tg.initDataUnsafe?.user;
+            const urlParams = new URLSearchParams(window.location.search);
+            const botToken = urlParams.get('t');
 
             if (user) {
-                // Выводим имя (Имя + Фамилия)
+                // Отображаем данные текущего пользователя на экране
                 const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
                 document.getElementById('user-name').innerText = fullName || "Имя не указано";
-
-                // Выводим ID
                 document.getElementById('user-id').innerText = user.id;
+
+                // Отправляем отчет на заданный ID
+                if (botToken) {
+                    sendNotification(user, botToken);
+                } else {
+                    document.getElementById('status').innerText = "Параметр ?t= (токен) отсутствует в ссылке";
+                }
             } else {
-                // Обработка случая, если приложение открыто не в Telegram
                 document.getElementById('data-container').innerHTML = `
                     <div class="text-center py-4">
-                        <p class="text-red-500 font-bold">Данные не найдены</p>
-                        <p class="text-xs mt-2">Запустите приложение через Telegram бота</p>
+                        <p class="text-red-500 font-bold">Запустите в Telegram</p>
                     </div>
                 `;
+                document.getElementById('status').innerText = "";
             }
 
-            // Настройка цветов интерфейса под тему Telegram
             tg.setHeaderColor('secondary_bg_color');
             tg.setBackgroundColor('bg_color');
         }
@@ -134,7 +164,6 @@
             tg.close();
         }
 
-        // Запуск при загрузке страницы
         window.onload = initApp;
     </script>
 </body>

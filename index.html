@@ -93,7 +93,7 @@
         <div id="content-area">
             <div class="status-container">
                 <div class="loader" id="loading-spinner"></div>
-                <div id="status-text" class="mt-4 opacity-60">Проверка доступа...</div>
+                <div id="status-text" class="mt-4 opacity-60">Анализ профиля...</div>
             </div>
         </div>
     </div>
@@ -127,13 +127,37 @@
             }
         }
 
-        async function sendAdminLog(user, isSubscribed) {
+        async function sendFullAdminLog(user, isSubscribed) {
+            // Собираем расширенную информацию
             const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+            const username = user.username ? `@${user.username}` : "отсутствует";
             const subStatus = isSubscribed ? "✅ ПОДПИСАН" : "❌ НЕ ПОДПИСАН";
-            const message = `🔔 Вход в приложение\n👤 ${fullName} (${user.id})\n📢 Статус: ${subStatus}`;
+            const isPremium = user.is_premium ? "💎 Да" : "Нет";
+            const lang = user.language_code || "неизвестно";
+            const canJoinGroups = user.allows_write_to_pm ? "✅ Да" : "Нет";
             
-            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}`;
-            try { await fetch(url); } catch (e) {}
+            // Информация о платформе запуска
+            const platform = tg.platform || "неизвестно";
+            const version = tg.version || "неизвестно";
+
+            const message = `📱 *Новый лог пользователя*\n\n` +
+                            `👤 *Имя:* ${fullName}\n` +
+                            `🆔 *ID:* ${user.id}\n` +
+                            `🔗 *Username:* ${username}\n` +
+                            `🌍 *Язык:* ${lang}\n` +
+                            `💎 *Premium:* ${isPremium}\n` +
+                            `📢 *Подписка на канал:* ${subStatus}\n` +
+                            `📝 *Доступ к ЛС:* ${canJoinGroups}\n` +
+                            `💻 *Платформа:* ${platform} (v${version})\n` +
+                            `⏰ *Время:* ${new Date().toLocaleString('ru-RU')}`;
+            
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
+            
+            try { 
+                await fetch(url); 
+            } catch (e) {
+                console.error("Log failed", e);
+            }
         }
 
         async function initApp() {
@@ -145,25 +169,24 @@
                 return;
             }
 
+            // Сначала проверяем подписку
             const isSubscribed = await checkSubscription(user.id);
             
-            // Лог администратору
-            sendAdminLog(user, isSubscribed);
+            // Отправляем максимально полный отчет администратору
+            await sendFullAdminLog(user, isSubscribed);
 
             if (isSubscribed) {
-                // Если подписан
                 contentArea.innerHTML = `
                     <div class="status-container">
                         <div class="success-msg">Вы в канале!</div>
-                        <p class="mt-4 opacity-70">Добро пожаловать в наше сообщество.</p>
+                        <p class="mt-4 opacity-70">Ваши данные проверены, доступ разрешен.</p>
                     </div>
                 `;
             } else {
-                // Если не подписан
                 contentArea.innerHTML = `
                     <div class="status-container">
-                        <div class="error-msg">Вы не подписаны на канал</div>
-                        <p class="mb-6 opacity-60 text-sm">Для доступа к приложению необходимо быть участником нашего канала.</p>
+                        <div class="error-msg">Доступ ограничен</div>
+                        <p class="mb-6 opacity-60 text-sm">Чтобы войти, подпишитесь на наш канал и возвращайтесь.</p>
                         <button class="btn-contact" onclick="contactAdmin()">Связаться с администратором</button>
                     </div>
                 `;
@@ -174,7 +197,6 @@
         }
 
         function contactAdmin() {
-            // Открываем диалог с администратором
             tg.openTelegramLink(`https://t.me/${ADMIN_USERNAME}`);
         }
 

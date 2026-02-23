@@ -23,11 +23,11 @@
 
         .card {
             background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            border-radius: 16px;
+            border-radius: 20px;
             padding: 24px;
             width: 90%;
-            max-width: 400px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            max-width: 360px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
             text-align: center;
         }
 
@@ -35,97 +35,106 @@
             text-align: left;
             margin-top: 20px;
             background: var(--tg-theme-bg-color, #ffffff);
-            padding: 15px;
-            border-radius: 12px;
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(0,0,0,0.05);
         }
 
         .label {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--tg-theme-hint-color, #999999);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
+            margin-bottom: 4px;
         }
 
         .value {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
             word-break: break-all;
+            color: var(--tg-theme-text-color, #000000);
+        }
+
+        .value:last-child {
+            margin-bottom: 0;
         }
 
         .btn-main {
             background-color: var(--tg-theme-button-color, #2481cc);
             color: var(--tg-theme-button-text-color, #ffffff);
             border: none;
-            border-radius: 10px;
-            padding: 12px 20px;
-            font-weight: 500;
+            border-radius: 12px;
+            padding: 14px 20px;
+            font-weight: 600;
+            font-size: 16px;
             width: 100%;
-            margin-top: 20px;
+            margin-top: 24px;
             cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .btn-main:active {
+            opacity: 0.8;
         }
     </style>
 </head>
 <body>
 
     <div class="card" id="main-card">
-        <h1 class="text-xl font-bold mb-4">Добро пожаловать!</h1>
-        <p class="text-sm opacity-80 mb-6">Данные вашего профиля из Telegram:</p>
+        <h1 class="text-2xl font-extrabold mb-2">Профиль</h1>
+        <p class="text-sm opacity-60 mb-6">Информация из вашего аккаунта</p>
 
-        <div class="user-data">
-            <div class="label">Имя пользователя</div>
-            <div id="user-name" class="value">Загрузка...</div>
+        <div class="user-data" id="data-container">
+            <div class="label">Имя</div>
+            <div id="user-name" class="value">—</div>
 
-            <div class="label">Telegram ID</div>
-            <div id="user-id" class="value">Загрузка...</div>
-
-            <div class="label">Username (@)</div>
-            <div id="user-username" class="value">не указан</div>
+            <div class="label">ID Пользователя</div>
+            <div id="user-id" class="value">—</div>
         </div>
 
-        <button class="btn-main" onclick="closeApp()">Закрыть приложение</button>
+        <button class="btn-main" onclick="closeApp()">Понятно</button>
     </div>
 
     <script>
         // Инициализация Telegram Web App
         const tg = window.Telegram.WebApp;
 
-        // Расширяем приложение на все окно
+        // Расширяем Mini App на весь экран
         tg.expand();
+        tg.ready();
 
-        // Основная функция для получения данных
         function initApp() {
+            // Получаем данные пользователя
             const user = tg.initDataUnsafe?.user;
 
             if (user) {
-                // Отображаем Имя (First Name + Last Name)
-                document.getElementById('user-name').innerText = 
-                    `${user.first_name || ''} ${user.last_name || ''}`.trim() || "Аноним";
+                // Выводим имя (Имя + Фамилия)
+                const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+                document.getElementById('user-name').innerText = fullName || "Имя не указано";
 
-                // Отображаем ID
+                // Выводим ID
                 document.getElementById('user-id').innerText = user.id;
-
-                // Отображаем Username если он есть
-                if (user.username) {
-                    document.getElementById('user-username').innerText = `@${user.username}`;
-                }
             } else {
-                // Если запущено не в Telegram
-                document.getElementById('main-card').innerHTML = `
-                    <h1 class="text-red-500 font-bold">Ошибка</h1>
-                    <p>Пожалуйста, запустите это приложение внутри Telegram.</p>
+                // Обработка случая, если приложение открыто не в Telegram
+                document.getElementById('data-container').innerHTML = `
+                    <div class="text-center py-4">
+                        <p class="text-red-500 font-bold">Данные не найдены</p>
+                        <p class="text-xs mt-2">Запустите приложение через Telegram бота</p>
+                    </div>
                 `;
             }
 
-            // Устанавливаем цвет заголовка в соответствии с темой
+            // Настройка цветов интерфейса под тему Telegram
             tg.setHeaderColor('secondary_bg_color');
+            tg.setBackgroundColor('bg_color');
         }
 
         function closeApp() {
             tg.close();
         }
 
-        // Запуск при загрузке
+        // Запуск при загрузке страницы
         window.onload = initApp;
     </script>
 </body>

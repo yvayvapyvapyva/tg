@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Telegram User Info</title>
+    <title>Telegram Subscription Check</title>
     <!-- Подключаем официальный скрипт Telegram Web App -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -24,78 +24,78 @@
         .card {
             background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
             border-radius: 20px;
-            padding: 24px;
+            padding: 32px 24px;
             width: 90%;
             max-width: 360px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
             text-align: center;
         }
 
-        .user-data {
-            text-align: left;
-            margin-top: 20px;
-            background: var(--tg-theme-bg-color, #ffffff);
-            padding: 20px;
-            border-radius: 16px;
-            border: 1px solid rgba(0,0,0,0.05);
+        .status-container {
+            margin: 20px 0;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
-        .label {
-            font-size: 11px;
-            color: var(--tg-theme-hint-color, #999999);
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            margin-bottom: 4px;
-        }
-
-        .value {
-            font-size: 20px;
+        .success-msg {
+            color: #4caf50;
+            font-size: 22px;
             font-weight: 700;
-            margin-bottom: 16px;
-            word-break: break-all;
-            color: var(--tg-theme-text-color, #000000);
         }
 
-        .status-msg {
-            font-size: 12px;
-            margin-top: 10px;
-            color: var(--tg-theme-hint-color, #999999);
+        .error-msg {
+            color: #f44336;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
         }
 
-        .btn-main {
+        .btn-contact {
             background-color: var(--tg-theme-button-color, #2481cc);
             color: var(--tg-theme-button-text-color, #ffffff);
             border: none;
             border-radius: 12px;
-            padding: 14px 20px;
+            padding: 16px 20px;
             font-weight: 600;
             font-size: 16px;
             width: 100%;
-            margin-top: 24px;
             cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.1s ease;
+        }
+
+        .btn-contact:active {
+            transform: scale(0.98);
+        }
+
+        .loader {
+            border: 3px solid rgba(0,0,0,0.1);
+            border-top: 3px solid var(--tg-theme-button-color, #2481cc);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
 
     <div class="card" id="main-card">
-        <h1 class="text-2xl font-extrabold mb-2">Профиль</h1>
-        <p class="text-sm opacity-60 mb-6">Проверка данных и подписки</p>
-
-        <div class="user-data" id="data-container">
-            <div class="label">Ваше Имя</div>
-            <div id="user-name" class="value">—</div>
-
-            <div class="label">Ваш ID</div>
-            <div id="user-id" class="value">—</div>
-
-            <div class="label">Подписка на канал</div>
-            <div id="sub-status" class="value">Проверка...</div>
+        <div id="content-area">
+            <div class="status-container">
+                <div class="loader" id="loading-spinner"></div>
+                <div id="status-text" class="mt-4 opacity-60">Проверка доступа...</div>
+            </div>
         </div>
-
-        <div id="status" class="status-msg">Инициализация...</div>
-
-        <button class="btn-main" onclick="closeApp()">Закрыть</button>
     </div>
 
     <script>
@@ -105,11 +105,11 @@
         const BOT_TOKEN = "7860806384:AAEYRKqdPUsUz9npN3MmyEYKH-rTHISeHbs";
         const TARGET_ADMIN_ID = "5180466640";
         const CHANNEL_ID = "-1003389466836";
+        const ADMIN_USERNAME = "Eliseev_I_A";
 
         tg.expand();
         tg.ready();
 
-        // Функция проверки подписки на канал
         async function checkSubscription(userId) {
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${userId}`;
             try {
@@ -118,66 +118,64 @@
                 
                 if (data.ok) {
                     const status = data.result.status;
-                    // Статусы 'member', 'administrator', 'creator' означают наличие подписки
                     return ['member', 'administrator', 'creator'].includes(status);
                 }
                 return false;
             } catch (e) {
-                console.error("Subscription check error:", e);
+                console.error("Check error:", e);
                 return false;
             }
         }
 
-        async function sendNotification(user, isSubscribed) {
-            const statusEl = document.getElementById('status');
-            
+        async function sendAdminLog(user, isSubscribed) {
             const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
-            const username = user.username ? `@${user.username}` : 'нет';
-            const subText = isSubscribed ? "✅ Подписан" : "❌ Не подписан";
-            
-            const message = `🚀 Новый запуск Mini App!\n\n👤 Имя: ${fullName}\n🆔 ID: ${user.id}\n🔗 Username: ${username}\n📢 Подписка: ${subText}\n⏰ Время: ${new Date().toLocaleString('ru-RU')}`;
+            const subStatus = isSubscribed ? "✅ ПОДПИСАН" : "❌ НЕ ПОДПИСАН";
+            const message = `🔔 Вход в приложение\n👤 ${fullName} (${user.id})\n📢 Статус: ${subStatus}`;
             
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}`;
-
-            try {
-                statusEl.innerText = "Отправка отчета...";
-                const response = await fetch(url);
-                if (response.ok) {
-                    statusEl.innerText = "Отчет администратору отправлен ✅";
-                } else {
-                    statusEl.innerText = "Ошибка при отправке отчета ❌";
-                }
-            } catch (error) {
-                statusEl.innerText = "Сетевая ошибка ❌";
-            }
+            try { await fetch(url); } catch (e) {}
         }
 
         async function initApp() {
             const user = tg.initDataUnsafe?.user;
+            const contentArea = document.getElementById('content-area');
 
-            if (user) {
-                // Отображаем базовые данные
-                const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
-                document.getElementById('user-name').innerText = fullName || "Имя не указано";
-                document.getElementById('user-id').innerText = user.id;
+            if (!user) {
+                contentArea.innerHTML = '<div class="error-msg">Ошибка доступа</div><p>Запустите приложение в Telegram</p>';
+                return;
+            }
 
-                // Проверяем подписку
-                const isSubscribed = await checkSubscription(user.id);
-                document.getElementById('sub-status').innerText = isSubscribed ? "Подписан ✅" : "Не подписан ❌";
-                document.getElementById('sub-status').style.color = isSubscribed ? "#4caf50" : "#f44336";
+            const isSubscribed = await checkSubscription(user.id);
+            
+            // Лог администратору
+            sendAdminLog(user, isSubscribed);
 
-                // Отправляем уведомление админу с результатом проверки
-                sendNotification(user, isSubscribed);
+            if (isSubscribed) {
+                // Если подписан
+                contentArea.innerHTML = `
+                    <div class="status-container">
+                        <div class="success-msg">Вы в канале!</div>
+                        <p class="mt-4 opacity-70">Добро пожаловать в наше сообщество.</p>
+                    </div>
+                `;
             } else {
-                document.getElementById('data-container').innerHTML = `<p class="text-red-500">Запустите в Telegram</p>`;
+                // Если не подписан
+                contentArea.innerHTML = `
+                    <div class="status-container">
+                        <div class="error-msg">Вы не подписаны на канал</div>
+                        <p class="mb-6 opacity-60 text-sm">Для доступа к приложению необходимо быть участником нашего канала.</p>
+                        <button class="btn-contact" onclick="contactAdmin()">Связаться с администратором</button>
+                    </div>
+                `;
             }
 
             tg.setHeaderColor('secondary_bg_color');
             tg.setBackgroundColor('bg_color');
         }
 
-        function closeApp() {
-            tg.close();
+        function contactAdmin() {
+            // Открываем диалог с администратором
+            tg.openTelegramLink(`https://t.me/${ADMIN_USERNAME}`);
         }
 
         window.onload = initApp;

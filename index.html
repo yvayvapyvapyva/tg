@@ -18,83 +18,81 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            /* Обеспечиваем полное заполнение экрана */
+            width: 100vw;
             overflow: hidden;
         }
 
         .card {
             background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            border-radius: 20px;
-            padding: 32px 24px;
+            border-radius: 24px;
+            padding: 40px 24px;
             width: 90%;
             max-width: 360px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             text-align: center;
+            transition: all 0.3s ease;
         }
 
         .status-container {
-            margin: 20px 0;
-            min-height: 80px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            min-height: 120px;
         }
 
-        .success-msg {
-            color: #4caf50;
-            font-size: 22px;
+        .main-text {
+            font-size: 20px;
             font-weight: 700;
+            line-height: 1.4;
         }
 
-        .error-msg {
+        .success-text {
+            color: #4caf50;
+        }
+
+        .error-text {
             color: #f44336;
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 15px;
         }
 
-        .btn-contact {
+        .btn-admin {
             background-color: var(--tg-theme-button-color, #2481cc);
             color: var(--tg-theme-button-text-color, #ffffff);
             border: none;
-            border-radius: 12px;
-            padding: 16px 20px;
+            border-radius: 14px;
+            padding: 16px 24px;
             font-weight: 600;
             font-size: 16px;
             width: 100%;
+            margin-top: 24px;
             cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            transition: transform 0.1s ease;
+            box-shadow: 0 4px 12px rgba(36, 129, 204, 0.3);
         }
 
-        .btn-contact:active {
-            transform: scale(0.98);
+        .btn-admin:active {
+            transform: scale(0.97);
+            opacity: 0.9;
         }
 
-        .loader {
-            border: 3px solid rgba(0,0,0,0.1);
-            border-top: 3px solid var(--tg-theme-button-color, #2481cc);
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
+        /* Анимация пульсации для загрузки */
+        .pulse {
+            animation: pulse-animation 1.5s infinite ease-in-out;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        @keyframes pulse-animation {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
         }
     </style>
 </head>
 <body>
 
     <div class="card" id="main-card">
-        <div id="content-area">
-            <div class="status-container">
-                <div class="loader" id="loading-spinner"></div>
-                <div id="status-text" class="mt-4 opacity-60">Анализ профиля...</div>
-            </div>
+        <div id="content-area" class="status-container">
+            <!-- Начальное состояние при запуске -->
+            <div class="main-text pulse">проверка доступа</div>
         </div>
     </div>
 
@@ -107,96 +105,73 @@
         const CHANNEL_ID = "-1003389466836";
         const ADMIN_USERNAME = "Eliseev_I_A";
 
+        // Принудительное развертывание на весь экран
         tg.expand();
         tg.ready();
+
+        // Дополнительная проверка на случай, если expand() не сработал мгновенно
+        if (tg.isExpanded === false) {
+            tg.expand();
+        }
 
         async function checkSubscription(userId) {
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${userId}`;
             try {
                 const response = await fetch(url);
                 const data = await response.json();
-                
                 if (data.ok) {
                     const status = data.result.status;
                     return ['member', 'administrator', 'creator'].includes(status);
                 }
                 return false;
             } catch (e) {
-                console.error("Check error:", e);
                 return false;
             }
         }
 
-        async function sendFullAdminLog(user, isSubscribed) {
-            // Собираем расширенную информацию
+        async function sendLogToAdmin(user, isSubscribed) {
             const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
-            const username = user.username ? `@${user.username}` : "отсутствует";
             const subStatus = isSubscribed ? "✅ ПОДПИСАН" : "❌ НЕ ПОДПИСАН";
-            const isPremium = user.is_premium ? "💎 Да" : "Нет";
-            const lang = user.language_code || "неизвестно";
-            const canJoinGroups = user.allows_write_to_pm ? "✅ Да" : "Нет";
-            
-            // Информация о платформе запуска
-            const platform = tg.platform || "неизвестно";
-            const version = tg.version || "неизвестно";
-
-            const message = `📱 *Новый лог пользователя*\n\n` +
-                            `👤 *Имя:* ${fullName}\n` +
-                            `🆔 *ID:* ${user.id}\n` +
-                            `🔗 *Username:* ${username}\n` +
-                            `🌍 *Язык:* ${lang}\n` +
-                            `💎 *Premium:* ${isPremium}\n` +
-                            `📢 *Подписка на канал:* ${subStatus}\n` +
-                            `📝 *Доступ к ЛС:* ${canJoinGroups}\n` +
-                            `💻 *Платформа:* ${platform} (v${version})\n` +
-                            `⏰ *Время:* ${new Date().toLocaleString('ru-RU')}`;
+            const message = `🔔 *Mini App Login*\n👤 *User:* ${fullName} (${user.id})\n📢 *Status:* ${subStatus}\n📱 *Platform:* ${tg.platform}`;
             
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
-            
-            try { 
-                await fetch(url); 
-            } catch (e) {
-                console.error("Log failed", e);
-            }
+            try { await fetch(url); } catch (e) {}
         }
 
         async function initApp() {
             const user = tg.initDataUnsafe?.user;
             const contentArea = document.getElementById('content-area');
 
+            // Небольшая задержка для визуального эффекта "проверки", как просил пользователь
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
             if (!user) {
-                contentArea.innerHTML = '<div class="error-msg">Ошибка доступа</div><p>Запустите приложение в Telegram</p>';
+                contentArea.innerHTML = '<div class="main-text error-text">ошибка доступа</div>';
                 return;
             }
 
-            // Сначала проверяем подписку
             const isSubscribed = await checkSubscription(user.id);
             
-            // Отправляем максимально полный отчет администратору
-            await sendFullAdminLog(user, isSubscribed);
+            // Лог администратору
+            sendLogToAdmin(user, isSubscribed);
 
             if (isSubscribed) {
                 contentArea.innerHTML = `
-                    <div class="status-container">
-                        <div class="success-msg">Вы в канале!</div>
-                        <p class="mt-4 opacity-70">Ваши данные проверены, доступ разрешен.</p>
-                    </div>
+                    <div class="main-text success-text">доступ разрешен</div>
                 `;
             } else {
                 contentArea.innerHTML = `
-                    <div class="status-container">
-                        <div class="error-msg">Доступ ограничен</div>
-                        <p class="mb-6 opacity-60 text-sm">Чтобы войти, подпишитесь на наш канал и возвращайтесь.</p>
-                        <button class="btn-contact" onclick="contactAdmin()">Связаться с администратором</button>
-                    </div>
+                    <div class="main-text error-text">доступ закрыт, обратитесь к администратору</div>
+                    <button class="btn-admin" onclick="openAdminChat()">написать администратору</button>
                 `;
             }
 
+            // Установка цветов темы
             tg.setHeaderColor('secondary_bg_color');
             tg.setBackgroundColor('bg_color');
         }
 
-        function contactAdmin() {
+        function openAdminChat() {
             tg.openTelegramLink(`https://t.me/${ADMIN_USERNAME}`);
         }
 

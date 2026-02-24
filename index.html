@@ -2,12 +2,17 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Telegram Subscription Check</title>
     <!-- Подключаем официальный скрипт Telegram Web App -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        :root {
+            /* Переменные для адаптации под высоту вьюпорта Telegram */
+            --tg-viewport-height: 100vh;
+        }
+
         body {
             background-color: var(--tg-theme-bg-color, #ffffff);
             color: var(--tg-theme-text-color, #222222);
@@ -17,10 +22,13 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            /* Обеспечиваем полное заполнение экрана */
+            height: 100vh; /* Стандартный откат */
+            height: var(--tg-viewport-height, 100vh);
             width: 100vw;
             overflow: hidden;
+            position: fixed; 
+            left: 0;
+            top: 0;
         }
 
         .card {
@@ -32,6 +40,7 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             text-align: center;
             transition: all 0.3s ease;
+            z-index: 10;
         }
 
         .status-container {
@@ -46,6 +55,7 @@
             font-size: 20px;
             font-weight: 700;
             line-height: 1.4;
+            text-transform: lowercase;
         }
 
         .success-text {
@@ -75,7 +85,6 @@
             opacity: 0.9;
         }
 
-        /* Анимация пульсации для загрузки */
         .pulse {
             animation: pulse-animation 1.5s infinite ease-in-out;
         }
@@ -91,7 +100,6 @@
 
     <div class="card" id="main-card">
         <div id="content-area" class="status-container">
-            <!-- Начальное состояние при запуске -->
             <div class="main-text pulse">проверка доступа</div>
         </div>
     </div>
@@ -105,14 +113,25 @@
         const CHANNEL_ID = "-1003389466836";
         const ADMIN_USERNAME = "Eliseev_I_A";
 
-        // Принудительное развертывание на весь экран
-        tg.expand();
-        tg.ready();
-
-        // Дополнительная проверка на случай, если expand() не сработал мгновенно
-        if (tg.isExpanded === false) {
+        // Настройка отображения (совместимая с версией 6.0)
+        function setupApp() {
+            tg.ready();
             tg.expand();
+            
+            // Метод requestFullscreen не поддерживается в v6.0, убираем его во избежание ошибок.
+            // Вместо этого полагаемся на expand() и правильный CSS.
+
+            // Проверка поддержки методов перед вызовом (доступны в версиях выше 6.0)
+            try {
+                if (tg.isVersionAtLeast('7.7') && tg.disableVerticalSwipes) {
+                    tg.disableVerticalSwipes();
+                }
+            } catch (e) {
+                console.warn("Vertical swipes disable not supported");
+            }
         }
+
+        setupApp();
 
         async function checkSubscription(userId) {
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${userId}`;
@@ -142,7 +161,7 @@
             const user = tg.initDataUnsafe?.user;
             const contentArea = document.getElementById('content-area');
 
-            // Небольшая задержка для визуального эффекта "проверки", как просил пользователь
+            // Небольшая задержка для визуального эффекта
             await new Promise(resolve => setTimeout(resolve, 1500));
 
             if (!user) {
@@ -151,8 +170,6 @@
             }
 
             const isSubscribed = await checkSubscription(user.id);
-            
-            // Лог администратору
             sendLogToAdmin(user, isSubscribed);
 
             if (isSubscribed) {
@@ -167,15 +184,31 @@
             }
 
             // Установка цветов темы
-            tg.setHeaderColor('secondary_bg_color');
-            tg.setBackgroundColor('bg_color');
+            if (tg.setHeaderColor) tg.setHeaderColor('secondary_bg_color');
+            if (tg.setBackgroundColor) tg.setBackgroundColor('bg_color');
         }
 
         function openAdminChat() {
             tg.openTelegramLink(`https://t.me/${ADMIN_USERNAME}`);
         }
 
-        window.onload = initApp;
+        // Обновление CSS переменной высоты
+        function updateHeight() {
+            document.documentElement.style.setProperty('--tg-viewport-height', `${window.innerHeight}px`);
+        }
+
+        window.onload = () => {
+            initApp();
+            updateHeight();
+        };
+
+        // Обработка событий вьюпорта
+        tg.onEvent('viewportChanged', (data) => {
+            updateHeight();
+            if (!tg.isExpanded) {
+                tg.expand();
+            }
+        });
     </script>
 </body>
 </html>

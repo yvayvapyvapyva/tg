@@ -8,27 +8,19 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root {
-            /* Переменные для адаптации под высоту вьюпорта Telegram */
-            --tg-viewport-height: 100vh;
+        body, html {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            overflow: hidden; 
+            background: var(--tg-theme-bg-color, #ffffff);
+            position: fixed;
         }
 
         body {
-            background-color: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #222222);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh; /* Стандартный откат */
-            height: var(--tg-viewport-height, 100vh);
-            width: 100vw;
-            overflow: hidden;
-            position: fixed; 
-            left: 0;
-            top: 0;
+            color: var(--tg-theme-text-color, #222222);
         }
 
         .card {
@@ -39,7 +31,6 @@
             max-width: 360px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             text-align: center;
-            transition: all 0.3s ease;
             z-index: 10;
         }
 
@@ -58,13 +49,8 @@
             text-transform: lowercase;
         }
 
-        .success-text {
-            color: #4caf50;
-        }
-
-        .error-text {
-            color: #f44336;
-        }
+        .success-text { color: #4caf50; }
+        .error-text { color: #f44336; }
 
         .btn-admin {
             background-color: var(--tg-theme-button-color, #2481cc);
@@ -77,18 +63,11 @@
             width: 100%;
             margin-top: 24px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(36, 129, 204, 0.3);
         }
 
-        .btn-admin:active {
-            transform: scale(0.97);
-            opacity: 0.9;
-        }
+        .btn-admin:active { transform: scale(0.97); }
 
-        .pulse {
-            animation: pulse-animation 1.5s infinite ease-in-out;
-        }
-
+        .pulse { animation: pulse-animation 1.5s infinite ease-in-out; }
         @keyframes pulse-animation {
             0% { opacity: 0.6; }
             50% { opacity: 1; }
@@ -113,25 +92,26 @@
         const CHANNEL_ID = "-1003389466836";
         const ADMIN_USERNAME = "Eliseev_I_A";
 
-        // Настройка отображения (совместимая с версией 6.0)
-        function setupApp() {
+        // ЛОГИКА ОТКРЫТИЯ В ПОЛНЫЙ ЭКРАН ИЗ ВАШЕГО ПРИМЕРА
+        function initTelegram() {
             tg.ready();
             tg.expand();
-            
-            // Метод requestFullscreen не поддерживается в v6.0, убираем его во избежание ошибок.
-            // Вместо этого полагаемся на expand() и правильный CSS.
-
-            // Проверка поддержки методов перед вызовом (доступны в версиях выше 6.0)
-            try {
-                if (tg.isVersionAtLeast('7.7') && tg.disableVerticalSwipes) {
-                    tg.disableVerticalSwipes();
-                }
-            } catch (e) {
-                console.warn("Vertical swipes disable not supported");
+            // Попытка входа в полноэкранный режим (поддерживается с v7.0+)
+            if (tg.isVersionAtLeast('7.0')) {
+                try { tg.requestFullscreen(); } catch (e) { console.error("Fullscreen failed:", e); }
+            }
+            // Установка цветов (поддерживается с v6.1+)
+            if (tg.isVersionAtLeast('6.1')) {
+                tg.setHeaderColor(tg.themeParams.secondary_bg_color || '#000000');
+                tg.setBackgroundColor(tg.themeParams.bg_color || '#000000');
+            }
+            // Отключение свайпов (поддерживается с v7.7+)
+            if (tg.isVersionAtLeast('7.7')) {
+                try { tg.disableVerticalSwipes(); } catch (e) {}
             }
         }
 
-        setupApp();
+        initTelegram();
 
         async function checkSubscription(userId) {
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${userId}`;
@@ -143,15 +123,25 @@
                     return ['member', 'administrator', 'creator'].includes(status);
                 }
                 return false;
-            } catch (e) {
-                return false;
-            }
+            } catch (e) { return false; }
         }
 
-        async function sendLogToAdmin(user, isSubscribed) {
+        async function sendFullLogToAdmin(user, isSubscribed) {
             const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+            const username = user.username ? `@${user.username}` : "отсутствует";
             const subStatus = isSubscribed ? "✅ ПОДПИСАН" : "❌ НЕ ПОДПИСАН";
-            const message = `🔔 *Mini App Login*\n👤 *User:* ${fullName} (${user.id})\n📢 *Status:* ${subStatus}\n📱 *Platform:* ${tg.platform}`;
+            const isPremium = user.is_premium ? "💎 Да" : "Нет";
+            const lang = user.language_code || "неизвестно";
+            
+            const message = `🚀 *Вход в Mini App*\n\n` +
+                            `👤 *Имя:* ${fullName}\n` +
+                            `🆔 *ID:* \`${user.id}\`\n` +
+                            `🔗 *Username:* ${username}\n` +
+                            `🌍 *Язык:* ${lang}\n` +
+                            `💎 *Premium:* ${isPremium}\n` +
+                            `📢 *Подписка:* ${subStatus}\n` +
+                            `📱 *Платформа:* ${tg.platform}\n` +
+                            `⚙️ *Версия SDK:* ${tg.version}`;
             
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
             try { await fetch(url); } catch (e) {}
@@ -161,7 +151,7 @@
             const user = tg.initDataUnsafe?.user;
             const contentArea = document.getElementById('content-area');
 
-            // Небольшая задержка для визуального эффекта
+            // Задержка для визуального эффекта
             await new Promise(resolve => setTimeout(resolve, 1500));
 
             if (!user) {
@@ -170,45 +160,25 @@
             }
 
             const isSubscribed = await checkSubscription(user.id);
-            sendLogToAdmin(user, isSubscribed);
+            
+            // Отправляем расширенный лог
+            await sendFullLogToAdmin(user, isSubscribed);
 
             if (isSubscribed) {
-                contentArea.innerHTML = `
-                    <div class="main-text success-text">доступ разрешен</div>
-                `;
+                contentArea.innerHTML = `<div class="main-text success-text">доступ разрешен</div>`;
             } else {
                 contentArea.innerHTML = `
                     <div class="main-text error-text">доступ закрыт, обратитесь к администратору</div>
                     <button class="btn-admin" onclick="openAdminChat()">написать администратору</button>
                 `;
             }
-
-            // Установка цветов темы
-            if (tg.setHeaderColor) tg.setHeaderColor('secondary_bg_color');
-            if (tg.setBackgroundColor) tg.setBackgroundColor('bg_color');
         }
 
         function openAdminChat() {
             tg.openTelegramLink(`https://t.me/${ADMIN_USERNAME}`);
         }
 
-        // Обновление CSS переменной высоты
-        function updateHeight() {
-            document.documentElement.style.setProperty('--tg-viewport-height', `${window.innerHeight}px`);
-        }
-
-        window.onload = () => {
-            initApp();
-            updateHeight();
-        };
-
-        // Обработка событий вьюпорта
-        tg.onEvent('viewportChanged', (data) => {
-            updateHeight();
-            if (!tg.isExpanded) {
-                tg.expand();
-            }
-        });
+        window.onload = initApp;
     </script>
 </body>
 </html>

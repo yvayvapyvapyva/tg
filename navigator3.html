@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Route Navigator Optimized</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=YANDEX_API_KEY&lang=ru_RU&suppressMapOpenBlock=true"></script>
+    <style>
+        :root { --bg: var(--tg-theme-bg-color, #f5f5f7); --btn: var(--tg-theme-button-color, #007AFF); --btn-txt: var(--tg-theme-button-text-color, #fff); --sheet-bg: rgba(255, 255, 255, 0.95); --text-main: #1d1d1f; --text-sub: #86868b; --accent: #007AFF; --border: rgba(255,255,255,0.1); --panel-blur: blur(15px); }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: -apple-system, sans-serif; overflow: hidden; background: #000; position: fixed; touch-action: none; }
+        #map { position: absolute; inset: 0; z-index: 1; touch-action: auto; }
+        [class*="-copyrights-pane"], [class*="-map-copyrights-promo"], [class*="-controls-pane"] { display: none !important; }
+        
+        /* Top Controls */
+        .top-controls { position: absolute; top: 16px; right: 16px; z-index: 9005; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .icon-btn { pointer-events: auto; width: 48px; height: 48px; border-radius: 14px; background: rgba(0,0,0,.75); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: var(--panel-blur); }
+        .icon-btn svg { fill: white; width: 24px; }
+
+        /* Settings Panel */
+        #settingsOverlay { position: absolute; top: 74px; right: 16px; z-index: 9010; background: var(--sheet-bg); border-radius: 18px; display: none; flex-direction: column; border: 1px solid rgba(0,0,0,0.15); width: 240px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); padding: 12px; gap: 10px; pointer-events: auto; }
+        .settings-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: #333; }
+        .trigger-input { width: 54px; padding: 6px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1); text-align: center; font-weight: 700; font-family: inherit; background: white; }
+
+        /* Bottom UI */
+        .bottom-ui-wrapper { position: absolute; bottom: 30px; left: 16px; right: 16px; z-index: 9000; display: flex; align-items: flex-end; justify-content: flex-end; gap: 12px; pointer-events: none; }
+        #navHud, #selectionHud { flex: 1; background: rgba(0,0,0,0.85); backdrop-filter: var(--panel-blur); border-radius: 18px; padding: 14px; color: white; display: none; flex-direction: column; gap: 6px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.4); pointer-events: auto; max-width: calc(100% - 80px); }
+        #navHud.active, #selectionHud.active { display: flex; }
+        
+        .hud-actions { display: flex; gap: 8px; margin-top: 8px; }
+        .hud-btn { flex: 1; padding: 10px; border-radius: 10px; border: none; background: var(--btn); color: white; font-weight: 700; font-size: 13px; cursor: pointer; }
+        
+        /* Menu & List */
+        #filterMenu { position: absolute; bottom: 60px; right: 0; pointer-events: auto; background: var(--sheet-bg); border-radius: 20px; display: none; flex-direction: column; border: 1px solid rgba(0,0,0,0.15); min-width: 280px; max-width: calc(100vw - 40px); max-height: 70vh; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .menu-header { padding: 12px; background: #f9f9f9; border-bottom: 1px solid rgba(0,0,0,0.08); }
+        #pointsList { overflow-y: auto; flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+        
+        .point-item { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: #fff; border: 1px solid transparent; cursor: pointer; }
+        .point-item.active { border-color: var(--accent); background: rgba(0,122,255,0.05); }
+        .point-item.passed { opacity: 0.4; }
+        .point-badge { min-width: 22px; height: 22px; border-radius: 50%; background: #f0f0f2; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+        .active .point-badge { background: var(--accent); color: #fff; }
+        .point-name { font-size: 14px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .hud-header { display: flex; align-items: flex-start; gap: 8px; }
+        .hud-index { background: var(--accent); color: white; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 5px; min-width: 14px; text-align: center; }
+        .hud-cmd { font-size: 15px; font-weight: 700; line-height: 1.2; flex: 1; }
+        .hud-stats { display: flex; align-items: center; gap: 12px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .stat-label { font-size: 8px; color: #aaa; text-transform: uppercase; }
+        .stat-value { font-size: 13px; font-weight: 600; }
+        .stat-value.in-range { color: #34C759; text-shadow: 0 0 8px rgba(52, 199, 89, 0.6); }
+
+        .control-stack { display: flex; flex-direction: column; gap: 10px; width: 52px; pointer-events: none; }
+        #telemetryHud { background: rgba(0,0,0,0.85); backdrop-filter: var(--panel-blur); border-radius: 14px; padding: 8px 0; color: white; display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); pointer-events: auto; }
+        .tel-item { display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .tel-label { font-size: 7px; color: #aaa; font-weight: 700; }
+        .tel-value { font-size: 14px; font-weight: 800; }
+        
+        .map-btn { pointer-events: auto; width: 52px; height: 52px; border-radius: 50%; background: rgba(0,0,0,.75); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .map-btn svg { fill: white; width: 24px; }
+        .map-btn.active { background: var(--btn); }
+
+        .source-select { width: 100%; padding: 10px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); font-size: 13px; background: white; font-weight: 600; }
+        .loading-overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; color: white; transition: opacity 0.5s; }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .speak-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f0f0f2; border: none; }
+    </style>
+</head>
+<body onclick="interact()">
+<div id="loading" class="loading-overlay">Инициализация...</div>
+<div id="map"></div>
+<video id="noSleepVideo" playsinline loop muted style="display:none"></video>
+
+<div class="top-controls">
+    <div class="icon-btn" onclick="toggleSettings(); event.stopPropagation();">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+    </div>
+    <div id="settingsOverlay" onclick="event.stopPropagation()">
+        <div class="settings-row"><span>Триггер (м)</span><input type="number" class="trigger-input" value="25" onchange="CFG.TRIGGER_DIST=+this.value"></div>
+        <div class="settings-row"><span>Мин. скорость</span><input type="number" class="trigger-input" value="3" onchange="CFG.SPEED_THRESHOLD=+this.value"></div>
+        <div class="settings-row"><span>Азимут допуск</span><input type="number" class="trigger-input" value="45" onchange="CFG.AZ_TOLERANCE=+this.value"></div>
+    </div>
+</div>
+
+<div class="bottom-ui-wrapper">
+    <div id="navHud">
+        <div class="hud-header">
+            <span class="hud-index" id="hudIndex">1</span>
+            <div class="hud-cmd" id="hudCmd">Загрузите маршрут...</div>
+        </div>
+        <div class="hud-stats">
+            <div class="stat-item"><span class="stat-label">ДИСТ:</span> <span class="stat-value" id="hudDist">---</span></div>
+            <div class="stat-item"><span class="stat-label">АЗ:</span> <span class="stat-value" id="hudTargetAz">---</span></div>
+        </div>
+    </div>
+
+    <div id="selectionHud">
+        <div class="hud-header">
+            <span class="hud-index" id="selIndex">0</span>
+            <div class="hud-cmd" id="selCmd">Выбранная точка</div>
+        </div>
+        <div class="hud-actions">
+            <button class="hud-btn" id="selConfirmBtn">Сделать текущей целью</button>
+        </div>
+    </div>
+
+    <div class="control-stack">
+        <div id="telemetryHud">
+            <div class="tel-item"><span class="tel-label">КМ/Ч</span><span class="tel-value" id="telSpeed">0</span></div>
+            <div style="height:1px; width:60%; background:rgba(255,255,255,0.15); margin:2px 0;"></div>
+            <div class="tel-item"><span class="tel-label">АЗ</span><span class="tel-value" id="telAz">0°</span></div>
+        </div>
+        <div style="position: relative;">
+            <div class="map-btn" onclick="toggleMenu(); event.stopPropagation();"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg></div>
+            <div id="filterMenu">
+                <div class="menu-header" onclick="event.stopPropagation()">
+                    <select id="sourceSelect" class="source-select" onchange="loadData(this.value); toggleMenu(false);"><option value="" disabled selected>Маршрут...</option></select>
+                </div>
+                <div id="pointsList"></div>
+            </div>
+        </div>
+        <div id="locateBtn" class="map-btn active" onclick="autoCenter=!autoCenter; this.classList.toggle('active', autoCenter); interact();"><svg viewBox="0 0 24 24"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 7.48 7.94 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg></div>
+    </div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if(tg) { tg.ready(); tg.expand(); if(tg.isVersionAtLeast('8.0')) tg.requestFullscreen?.(); }
+
+const CFG = { USER_ID: "yvayvapyvapyva", TRIGGER_DIST: 25, AZ_TOLERANCE: 45, SPEED_THRESHOLD: 3, DEFAULT_CENTER: [56.3268, 44.0059], COLORS: { Gold:'#FFD700', Blue:'#007AFF', Red:'#FF3B30', Lime:'#34C759', Fuchsia:'#AF52DE', Orange:'#FF9500', Purple:'#5856D6', Cyan:'#5AC8FA', Brown:'#A2845E', Grey:'#8E8E93' } };
+let map, objectManager, userMarker, pathsCollection, previewPathsCollection, pointsData=[], currentIndex=-1, autoCenter=true, iconCache=new Map(), lastPos=null, lastAz=0, wakeLock=null, audioInit=false;
+
+const ui = id => document.getElementById(id);
+
+async function interact() {
+    if (!audioInit) { (new Audio()).play().catch(()=>{}); audioInit=true; }
+    const v = ui('noSleepVideo');
+    if (v.paused) { v.src='data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21tcDQyAAAACHZyZWQAAAAId2lkdGgAAAAIaGVpZ2h0AAAACmRhdGEAAAAAAA=='; v.play().catch(()=>{}); }
+    if ('wakeLock' in navigator && !wakeLock) wakeLock = await navigator.wakeLock.request('screen').catch(()=>null);
+}
+
+/**
+ * Получение пути к аудиофайлу на основе текста команды.
+ */
+function getAudioPath(text) {
+    if (!text) return null;
+    const cleanName = text.toLowerCase()
+                       .normalize('NFC')
+                       .replace(/[.,\/#!$%\^&\*;:{}=\-`~()]/g, "")
+                       .trim()
+                       .replace(/\s+/g, '_');
+    return `audio/${encodeURIComponent(cleanName)}.mp3`;
+}
+
+/**
+ * Предзагрузка аудиофайлов маршрута.
+ */
+function preloadAudio(points) {
+    const urls = new Set();
+    points.forEach(p => {
+        const path = getAudioPath(p.cmd);
+        if (path) urls.add(path);
+    });
+    urls.forEach(url => {
+        const audio = new Audio();
+        audio.preload = 'auto';
+        audio.src = url;
+    });
+}
+
+/**
+ * Воспроизведение команды.
+ */
+function playCommand(text) {
+    const path = getAudioPath(text);
+    if (!path) return;
+    const audio = new Audio(path);
+    audio.play().catch(err => {
+        console.error(`Ошибка воспроизведения: ${path}`, err);
+    });
+}
+
+const calcAz = (p1, p2) => {
+    const [la1, lo1] = p1.map(v => v * Math.PI/180), [la2, lo2] = p2.map(v => v * Math.PI/180);
+    const y = Math.sin(lo2-lo1) * Math.cos(la2), x = Math.cos(la1)*Math.sin(la2) - Math.sin(la1)*Math.cos(la2)*Math.cos(lo2-lo1);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+};
+
+const getIcon = (col, txt, az, isEnd, isCurr=false) => {
+    const key = `${col}-${txt}-${Math.round(az)}-${isEnd}-${isCurr}`;
+    if(iconCache.has(key)) return iconCache.get(key);
+    const s=isEnd?34:40, c=s/2, t=txt.replace('!',''), strk=isCurr?'#34C759':(isEnd?'white':'black');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}"><g transform="rotate(${az},${c},${c})"><polygon points="${c},2 ${c+10},${s-5} ${c},${s-14} ${c-10},${s-5}" fill="${col}" stroke="${strk}" stroke-width="${isCurr?2:1.5}"/></g><circle cx="${c}" cy="${c}" r="${isEnd?7:9}" fill="${col}" stroke="${strk}" stroke-width="${isCurr?2:1.5}"/><text x="${c}" y="${c+0.5}" font-size="${isEnd?8:9}" font-family="Arial" font-weight="900" text-anchor="middle" dominant-baseline="middle" fill="${txt.includes('!')?'#FF3B30':'#000'}" stroke="white" stroke-width="2" style="paint-order:stroke fill">${t}</text></svg>`;
+    const res = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+    iconCache.set(key, res); return res;
+};
+
+ymaps.ready(() => {
+    const init = p => { if(map) return; initMap(p?[p.coords.latitude, p.coords.longitude]:CFG.DEFAULT_CENTER); };
+    navigator.geolocation.getCurrentPosition(init, ()=>init(), {timeout:2000});
+    setTimeout(init, 2500);
+});
+
+function initMap(center) {
+    map = new ymaps.Map("map", { center, zoom: 15, type: 'yandex#satellite', controls: [] });
+    objectManager = new ymaps.ObjectManager();
+    pathsCollection = new ymaps.GeoObjectCollection();
+    previewPathsCollection = new ymaps.GeoObjectCollection();
+    map.geoObjects.add(objectManager).add(pathsCollection).add(previewPathsCollection);
+    userMarker = new ymaps.Placemark(center, {}, { iconLayout:'default#image', iconImageSize:[40,40], iconImageOffset:[-20,-20] });
+    map.geoObjects.add(userMarker);
+
+    objectManager.events.add('click', e => {
+        const p = pointsData.find(x => x.id === e.get('objectId')), idx = pointsData.indexOf(p);
+        if(!p || idx === currentIndex) return;
+        ui('navHud').classList.remove('active');
+        ui('selectionHud').classList.add('active');
+        ui('selIndex').innerText = idx + 1;
+        ui('selCmd').innerText = p.cmd;
+        ui('selConfirmBtn').onclick = () => { setTarget(idx); closeSelection(); };
+        previewPathsCollection.removeAll();
+        p.paths?.forEach(ps => {
+            if(!ps.pts || ps.pts.length<2) return;
+            previewPathsCollection.add(new ymaps.Polyline(ps.pts, {}, {strokeColor:p.hex, strokeWidth:4, strokeOpacity:0.6}));
+            const l = ps.pts.length;
+            const endAz = calcAz(ps.pts[l-2], ps.pts[l-1]);
+            previewPathsCollection.add(new ymaps.Placemark(ps.pts[l-1], {}, {iconLayout:'default#imageWithContent', iconImageSize:[34,34], iconImageOffset:[-17,-17], iconImageHref:getIcon(p.hex, String(p.id), endAz, true)}));
+        });
+    });
+
+    map.events.add('click', () => { interact(); closeSelection(); toggleMenu(false); toggleSettings(false); });
+
+    navigator.geolocation.watchPosition(p => {
+        const c = [p.coords.latitude, p.coords.longitude], speed = p.coords.speed ? p.coords.speed*3.6 : 0;
+        if(speed >= CFG.SPEED_THRESHOLD) lastAz = p.coords.heading ?? (lastPos ? calcAz(lastPos, c) : lastAz);
+        lastPos = c; userMarker.geometry.setCoordinates(c);
+        userMarker.options.set('iconImageHref', `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><g transform="rotate(${lastAz},20,20)"><path d="M20,4 L32,34 L20,28 L8,34 Z" fill="#FF3B30" stroke="white" stroke-width="2"/></g></svg>`)}`);
+        ui('telSpeed').innerText = Math.round(speed);
+        ui('telAz').innerText = `${Math.round(lastAz)}°`;
+        if(autoCenter) map.panTo(c);
+        checkNav();
+    }, null, {enableHighAccuracy:true});
+
+    fetchGists();
+    ui('loading').classList.add('hidden');
+}
+
+const closeSelection = () => { ui('selectionHud').classList.remove('active'); if(currentIndex>=0) ui('navHud').classList.add('active'); previewPathsCollection.removeAll(); };
+
+async function fetchGists() {
+    try {
+        const res = await fetch(`https://api.github.com/users/${CFG.USER_ID}/gists`);
+        const data = await res.json();
+        const select = ui('sourceSelect');
+        data.forEach(g => Object.values(g.files).forEach(f => {
+            if(f.filename.endsWith('.json')) {
+                const opt = new Option(f.filename.replace('.json',''), f.raw_url);
+                select.add(opt);
+            }
+        }));
+    } catch(e) {}
+}
+
+async function loadData(url) {
+    ui('loading').innerText = "Загрузка..."; ui('loading').classList.remove('hidden');
+    iconCache.clear();
+    objectManager.removeAll();
+    pathsCollection.removeAll();
+    previewPathsCollection.removeAll();
+    
+    try {
+        const res = await fetch(url);
+        pointsData = (await res.json()).map(d => ({ 
+            ...d, 
+            hex: CFG.COLORS[d.color] || d.color || '#007AFF', 
+            cmd: (d.paths?.[0]?.cmd?.[0] || d.comment || `Т${d.id}`).normalize('NFC'), 
+            az: d.az||0 
+        }));
+        
+        // Предзагрузка всех аудиофайлов после получения данных
+        preloadAudio(pointsData);
+        
+        currentIndex = 0; refreshMap();
+        map.setBounds(objectManager.getBounds(), {zoomMargin:60});
+        ui('navHud').classList.add('active');
+    } finally { ui('loading').classList.add('hidden'); }
+}
+
+function refreshMap() {
+    objectManager.removeAll(); pathsCollection.removeAll();
+    const curr = pointsData[currentIndex];
+    objectManager.add(pointsData.filter((p, i) => i >= currentIndex).map(p => ({
+        type:'Feature', id:p.id, geometry:{type:'Point', coordinates:[p.lat, p.lon]},
+        options:{ iconLayout:'default#imageWithContent', iconImageHref:getIcon(p.hex, `${p.id}${p.paths?.some(x=>x.comm)?'!':''}`, p.az, false, p===curr), iconImageSize:[40,40], iconImageOffset:[-20,-20] }
+    })));
+    curr?.paths?.forEach(ps => {
+        if(!ps.pts || ps.pts.length<2) return;
+        pathsCollection.add(new ymaps.Polyline(ps.pts, {}, {strokeColor:curr.hex, strokeWidth:5, strokeOpacity:0.9}));
+        const l = ps.pts.length;
+        const endAz = calcAz(ps.pts[l-2], ps.pts[l-1]);
+        pathsCollection.add(new ymaps.Placemark(ps.pts[l-1], {}, {iconLayout:'default#imageWithContent', iconImageSize:[34,34], iconImageOffset:[-17,-17], iconImageHref:getIcon(curr.hex, String(curr.id), endAz, true)}));
+    });
+    renderList(); updateHUD();
+}
+
+const setTarget = idx => { currentIndex=idx; refreshMap(); interact(); };
+
+function checkNav() {
+    if(currentIndex<0 || !lastPos) return;
+    const t = pointsData[currentIndex], d = ymaps.coordSystem.geo.getDistance(lastPos, [t.lat, t.lon]);
+    let ad = Math.abs(lastAz - t.az) % 360; if(ad > 180) ad = 360 - ad;
+    updateHUD(d, ad);
+    if(d <= CFG.TRIGGER_DIST && ad <= CFG.AZ_TOLERANCE) { playCommand(t.cmd); currentIndex++; refreshMap(); }
+}
+
+function updateHUD(d, ad) {
+    const t = pointsData[currentIndex]; if(!t) return;
+    ui('hudIndex').innerText = currentIndex + 1; ui('hudCmd').innerText = t.cmd; ui('hudTargetAz').innerText = `${Math.round(t.az)}°`;
+    if(d !== undefined) {
+        ui('hudDist').innerText = `${Math.round(d)}м`;
+        ui('hudDist').classList.toggle('in-range', d <= CFG.TRIGGER_DIST);
+        ui('hudTargetAz').classList.toggle('in-range', ad <= CFG.AZ_TOLERANCE);
+    }
+}
+
+function renderList() {
+    ui('pointsList').innerHTML = pointsData.map((p, i) => `
+        <div class="point-item ${i===currentIndex?'active':''} ${i<currentIndex?'passed':''}" onclick="setTarget(${i});toggleMenu(false);">
+            <div class="point-badge">${i+1}</div><div class="point-name">${p.cmd}</div>
+            <button class="speak-btn" onclick="event.stopPropagation(); playCommand('${p.cmd.replace(/'/g, "\\'")}');">
+                <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+            </button>
+        </div>`).join('');
+}
+
+const toggleMenu = s => { 
+    const m = ui('filterMenu'); 
+    m.style.display = (s ?? m.style.display!=='flex') ? 'flex' : 'none'; 
+    if(m.style.display === 'flex') toggleSettings(false);
+};
+
+const toggleSettings = s => {
+    const o = ui('settingsOverlay');
+    o.style.display = (s ?? o.style.display!=='flex') ? 'flex' : 'none';
+    if(o.style.display === 'flex') toggleMenu(false);
+};
+</script>
+</body>
+</html>

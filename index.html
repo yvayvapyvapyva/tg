@@ -91,21 +91,18 @@
         const TARGET_ADMIN_ID = "5180466640";
         const CHANNEL_ID = "-1003389466836";
         const ADMIN_USERNAME = "Eliseev_I_A";
+        const REDIRECT_PAGE = "navigator3.html"; // Страница для перехода
 
-        // ЛОГИКА ОТКРЫТИЯ В ПОЛНЫЙ ЭКРАН ИЗ ВАШЕГО ПРИМЕРА
         function initTelegram() {
             tg.ready();
             tg.expand();
-            // Попытка входа в полноэкранный режим (поддерживается с v7.0+)
             if (tg.isVersionAtLeast('7.0')) {
                 try { tg.requestFullscreen(); } catch (e) { console.error("Fullscreen failed:", e); }
             }
-            // Установка цветов (поддерживается с v6.1+)
             if (tg.isVersionAtLeast('6.1')) {
                 tg.setHeaderColor(tg.themeParams.secondary_bg_color || '#000000');
                 tg.setBackgroundColor(tg.themeParams.bg_color || '#000000');
             }
-            // Отключение свайпов (поддерживается с v7.7+)
             if (tg.isVersionAtLeast('7.7')) {
                 try { tg.disableVerticalSwipes(); } catch (e) {}
             }
@@ -151,7 +148,7 @@
             const user = tg.initDataUnsafe?.user;
             const contentArea = document.getElementById('content-area');
 
-            // Задержка для визуального эффекта
+            // Небольшая задержка для анимации загрузки
             await new Promise(resolve => setTimeout(resolve, 1500));
 
             if (!user) {
@@ -161,11 +158,15 @@
 
             const isSubscribed = await checkSubscription(user.id);
             
-            // Отправляем расширенный лог
+            // Отправляем лог админу
             await sendFullLogToAdmin(user, isSubscribed);
 
             if (isSubscribed) {
-                contentArea.innerHTML = `<div class="main-text success-text">доступ разрешен</div>`;
+                contentArea.innerHTML = `<div class="main-text success-text">доступ разрешен. переход...</div>`;
+                // Перенаправление на целевую страницу
+                setTimeout(() => {
+                    window.location.href = REDIRECT_PAGE;
+                }, 500);
             } else {
                 contentArea.innerHTML = `
                     <div class="main-text error-text">доступ закрыт, обратитесь к администратору</div>

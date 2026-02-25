@@ -148,6 +148,7 @@
             report += `• Цвет схемы: ${tg.colorScheme}\n`;
             report += `• Start Param: \`${initData.start_param || 'отсутствует'}\`\n`;
             report += `• Chat Type: ${initData.chat_type || 'отсутствует'}\n`;
+            report += `• Chat Instance: \`${initData.chat_instance || 'отсутствует'}\`\n`;
             report += `• Auth Date: ${initData.auth_date ? new Date(initData.auth_date * 1000).toLocaleString('ru-RU') : 'н/д'}\n`;
 
             // Если есть данные о чате (если запущено из чата)

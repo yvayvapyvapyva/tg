@@ -93,7 +93,6 @@
         const TARGET_ADMIN_ID = "5180466640";
         const ADMIN_USERNAME = "Eliseev_I_A";
         const DEFAULT_REDIRECT = "navigator3.html";
-        // Ключевой параметр для проверки доступа
         const REQUIRED_CHAT_INSTANCE = "-8981351714361271700";
 
         function initTelegram() {
@@ -132,7 +131,13 @@
             report += `• Auth Date: ${initData.auth_date ? new Date(initData.auth_date * 1000).toLocaleString('ru-RU') : 'н/д'}\n`;
 
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(report)}&parse_mode=Markdown`;
-            try { await fetch(url); } catch (e) { console.error("Ошибка отправки лога:", e); }
+            
+            try { 
+                // Обязательно используем await для fetch, чтобы запрос успел уйти
+                await fetch(url); 
+            } catch (e) { 
+                console.error("Ошибка отправки лога:", e); 
+            }
         }
 
         async function initApp() {
@@ -149,18 +154,15 @@
                 return;
             }
 
-            // ПРОВЕРКА CHAT_INSTANCE вместо подписки
             const currentChatInstance = String(initData.chat_instance || "");
             const hasAccess = (currentChatInstance === REQUIRED_CHAT_INSTANCE);
             
-            // Отправляем лог со всей информацией
-            sendFullLogToAdmin(hasAccess, targetPage);
+            // КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ: Добавлен await, чтобы дождаться отправки лога перед редиректом
+            await sendFullLogToAdmin(hasAccess, targetPage);
 
             if (hasAccess) {
-                // Если chat_instance совпал — мгновенный переход
                 window.location.replace(targetPage);
             } else {
-                // Если не совпал — показываем окно ошибки
                 spinner.style.display = 'none';
                 mainCard.style.display = 'block';
             }

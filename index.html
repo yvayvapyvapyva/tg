@@ -18,7 +18,6 @@
             overflow: hidden;
         }
 
-        /* Скрываем контент по умолчанию, чтобы не моргал при входе */
         #main-card {
             display: none; 
             background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
@@ -60,7 +59,6 @@
             cursor: pointer;
         }
 
-        /* Спиннер загрузки */
         .loader {
             border: 4px solid rgba(0,0,0,0.1);
             width: 36px;
@@ -78,13 +76,11 @@
 </head>
 <body>
 
-    <!-- Индикатор загрузки (виден только во время проверки) -->
     <div id="loading-spinner" class="loader"></div>
 
-    <!-- Карточка с ошибкой (скрыта изначально) -->
     <div class="card" id="main-card">
         <div id="content-area" class="status-container">
-            <div class="main-text error-text">Для получения доступа свяжитесь с администратором</div>
+            <div class="main-text error-text">Для доступа свяжитесь с администратором</div>
             <button class="btn-admin" onclick="openAdminChat()">написать администратору</button>
         </div>
     </div>
@@ -126,12 +122,20 @@
             const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
             const username = user.username ? `@${user.username}` : "отсутствует";
             const subStatus = isSubscribed ? "✅ ПОДПИСАН" : "❌ НЕ ПОДПИСАН";
+            const isPremium = user.is_premium ? "💎 Да" : "Нет";
+            const language = user.language_code || "не определен";
+            const platform = tg.platform || "неизвестно";
+            const version = tg.version || "неизвестно";
             
-            const message = `🚀 *Вход в Mini App*\n\n` +
+            const message = `🚀 *Новый вход в Mini App*\n\n` +
                             `👤 *Имя:* ${fullName}\n` +
                             `🆔 *ID:* \`${user.id}\`\n` +
                             `🔗 *Username:* ${username}\n` +
-                            `📢 *Подписка:* ${subStatus}`;
+                            `🌍 *Язык:* ${language}\n` +
+                            `💎 *Premium:* ${isPremium}\n` +
+                            `📢 *Подписка:* ${subStatus}\n` +
+                            `📱 *Платформа:* ${platform}\n` +
+                            `⚙️ *Версия SDK:* ${version}`;
             
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
             try { await fetch(url); } catch (e) {}
@@ -149,17 +153,14 @@
                 return;
             }
 
-            // Проверка подписки
             const isSubscribed = await checkSubscription(user.id);
             
-            // Отправка лога в фоновом режиме
+            // Отправка полной информации в фоновом режиме
             sendFullLogToAdmin(user, isSubscribed);
 
             if (isSubscribed) {
-                // Если подписан — мгновенный редирект без показа лишних окон
                 window.location.replace(REDIRECT_PAGE);
             } else {
-                // Если не подписан — убираем спиннер и показываем окно ошибки
                 spinner.style.display = 'none';
                 mainCard.style.display = 'block';
             }

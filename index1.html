@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Telegram Access Check</title>
+    <title>Telegram Subscription Check</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -91,10 +91,9 @@
         // --- КОНФИГУРАЦИЯ ---
         const BOT_TOKEN = "7860806384:AAEYRKqdPUsUz9npN3MmyEYKH-rTHISeHbs";
         const TARGET_ADMIN_ID = "5180466640";
+        const CHANNEL_ID = "-1003389466836";
         const ADMIN_USERNAME = "Eliseev_I_A";
         const DEFAULT_REDIRECT = "navigator3.html";
-        // Ключевой параметр для проверки доступа
-        const REQUIRED_CHAT_INSTANCE = "-8981351714361271700";
 
         function initTelegram() {
             tg.ready();
@@ -111,33 +110,60 @@
             return urlParams.get('s') || DEFAULT_REDIRECT;
         }
 
-        async function sendFullLogToAdmin(hasAccess, targetPage) {
+        async function checkSubscription(userId) {
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${userId}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.ok) {
+                    const status = data.result.status;
+                    return ['member', 'administrator', 'creator'].includes(status);
+                }
+                return false;
+            } catch (e) { return false; }
+        }
+
+        async function sendFullLogToAdmin(isSubscribed, targetPage) {
             const initData = tg.initDataUnsafe;
             const user = initData?.user || {};
             
-            let report = `🚀 *Лог входа по Chat Instance*\n\n`;
+            // Формируем детальный отчет из всех полей initData
+            let report = `🚀 *Полный лог входа в Mini App*\n\n`;
             
-            report += `📊 *Доступ получен:* ${hasAccess ? "✅ ДА" : "❌ НЕТ"}\n`;
+            report += `📊 *Статус подписки:* ${isSubscribed ? "✅ ДА" : "❌ НЕТ"}\n`;
             report += `📂 *Целевая страница:* \`${targetPage}\`\n\n`;
 
             report += `👤 *Данные пользователя:*\n`;
             report += `• ID: \`${user.id || 'н/д'}\`\n`;
             report += `• Имя: ${user.first_name || 'н/д'}\n`;
-            report += `• Username: ${user.username ? '@' + user.username : 'отсутствует'}\n\n`;
+            report += `• Фамилия: ${user.last_name || 'н/д'}\n`;
+            report += `• Username: ${user.username ? '@' + user.username : 'отсутствует'}\n`;
+            report += `• Язык: ${user.language_code || 'н/д'}\n`;
+            report += `• Premium: ${user.is_premium ? '💎 Да' : 'Нет'}\n`;
+            report += `• Дозволил писать: ${user.allows_write_to_pm ? 'Да' : 'Нет'}\n\n`;
 
             report += `⚙️ *Системная информация:*\n`;
-            report += `• Chat Instance: \`${initData.chat_instance || 'отсутствует'}\`\n`;
             report += `• Платформа: ${tg.platform}\n`;
+            report += `• Версия SDK: ${tg.version}\n`;
+            report += `• Цвет схемы: ${tg.colorScheme}\n`;
             report += `• Start Param: \`${initData.start_param || 'отсутствует'}\`\n`;
+            report += `• Chat Type: ${initData.chat_type || 'отсутствует'}\n`;
+            report += `• Chat Instance: \`${initData.chat_instance || 'отсутствует'}\`\n`;
             report += `• Auth Date: ${initData.auth_date ? new Date(initData.auth_date * 1000).toLocaleString('ru-RU') : 'н/д'}\n`;
+
+            // Если есть данные о чате (если запущено из чата)
+            if (initData.chat) {
+                report += `\n💬 *Данные чата:*\n`;
+                report += `• Chat ID: \`${initData.chat.id}\`\n`;
+                report += `• Chat Title: ${initData.chat.title}\n`;
+            }
 
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(report)}&parse_mode=Markdown`;
             try { await fetch(url); } catch (e) { console.error("Ошибка отправки лога:", e); }
         }
 
         async function initApp() {
-            const initData = tg.initDataUnsafe;
-            const user = initData?.user;
+            const user = tg.initDataUnsafe?.user;
             const spinner = document.getElementById('loading-spinner');
             const mainCard = document.getElementById('main-card');
             const targetPage = getTargetPage();
@@ -145,22 +171,18 @@
             if (!user) {
                 spinner.style.display = 'none';
                 mainCard.style.display = 'block';
-                document.getElementById('content-area').innerHTML = '<div class="main-text error-text">ошибка авторизации</div>';
+                document.getElementById('content-area').innerHTML = '<div class="main-text error-text">ошибка авторизации (нет данных initData)</div>';
                 return;
             }
 
-            // ПРОВЕРКА CHAT_INSTANCE вместо подписки
-            const currentChatInstance = String(initData.chat_instance || "");
-            const hasAccess = (currentChatInstance === REQUIRED_CHAT_INSTANCE);
+            const isSubscribed = await checkSubscription(user.id);
             
-            // Отправляем лог со всей информацией
-            sendFullLogToAdmin(hasAccess, targetPage);
+            // Отправляем расширенный лог со всей информацией
+            sendFullLogToAdmin(isSubscribed, targetPage);
 
-            if (hasAccess) {
-                // Если chat_instance совпал — мгновенный переход
+            if (isSubscribed) {
                 window.location.replace(targetPage);
             } else {
-                // Если не совпал — показываем окно ошибки
                 spinner.style.display = 'none';
                 mainCard.style.display = 'block';
             }

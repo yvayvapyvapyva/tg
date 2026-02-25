@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Telegram Subscription Check</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--tg-theme-bg-color, #ffffff);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--tg-theme-text-color, #222222);
+            overflow: hidden;
+        }
+
+        #main-card {
+            display: none; 
+            background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
+            border-radius: 24px;
+            padding: 40px 24px;
+            width: 90%;
+            max-width: 360px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .status-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 120px;
+        }
+
+        .main-text {
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1.4;
+            text-transform: lowercase;
+        }
+
+        .error-text { color: #f44336; }
+
+        .btn-admin {
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 14px;
+            padding: 16px 24px;
+            font-weight: 600;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 24px;
+            cursor: pointer;
+        }
+
+        .loader {
+            border: 4px solid rgba(0,0,0,0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: var(--tg-theme-button-color, #2481cc);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-spinner" class="loader"></div>
+
+    <div class="card" id="main-card">
+        <div id="content-area" class="status-container">
+            <div class="main-text error-text">доступ закрыт</div>
+            <button class="btn-admin" onclick="openAdminChat()">написать администратору</button>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        
+        // --- КОНФИГУРАЦИЯ ---
+        const BOT_TOKEN = "7860806384:AAEYRKqdPUsUz9npN3MmyEYKH-rTHISeHbs";
+        const TARGET_ADMIN_ID = "5180466640";
+        const CHANNEL_ID = "-1003389466836";
+        const ADMIN_USERNAME = "Eliseev_I_A";
+        const DEFAULT_REDIRECT = "navigator3.html";
+
+        function initTelegram() {
+            tg.ready();
+            tg.expand();
+            if (tg.isVersionAtLeast('7.0')) {
+                try { tg.requestFullscreen(); } catch (e) {}
+            }
+        }
+
+        initTelegram();
+
+        function getTargetPage() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('s') || DEFAULT_REDIRECT;
+        }
+
+        async function checkSubscription(userId) {
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${userId}`;
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.ok) {
+                    const status = data.result.status;
+                    return ['member', 'administrator', 'creator'].includes(status);
+                }
+                return false;
+            } catch (e) { return false; }
+        }
+
+        async function sendFullLogToAdmin(isSubscribed, targetPage) {
+            const initData = tg.initDataUnsafe;
+            const user = initData?.user || {};
+            
+            // Формируем детальный отчет из всех полей initData
+            let report = `🚀 *Полный лог входа в Mini App*\n\n`;
+            
+            report += `📊 *Статус подписки:* ${isSubscribed ? "✅ ДА" : "❌ НЕТ"}\n`;
+            report += `📂 *Целевая страница:* \`${targetPage}\`\n\n`;
+
+            report += `👤 *Данные пользователя:*\n`;
+            report += `• ID: \`${user.id || 'н/д'}\`\n`;
+            report += `• Имя: ${user.first_name || 'н/д'}\n`;
+            report += `• Фамилия: ${user.last_name || 'н/д'}\n`;
+            report += `• Username: ${user.username ? '@' + user.username : 'отсутствует'}\n`;
+            report += `• Язык: ${user.language_code || 'н/д'}\n`;
+            report += `• Premium: ${user.is_premium ? '💎 Да' : 'Нет'}\n`;
+            report += `• Дозволил писать: ${user.allows_write_to_pm ? 'Да' : 'Нет'}\n\n`;
+
+            report += `⚙️ *Системная информация:*\n`;
+            report += `• Платформа: ${tg.platform}\n`;
+            report += `• Версия SDK: ${tg.version}\n`;
+            report += `• Цвет схемы: ${tg.colorScheme}\n`;
+            report += `• Start Param: \`${initData.start_param || 'отсутствует'}\`\n`;
+            report += `• Chat Type: ${initData.chat_type || 'отсутствует'}\n`;
+            report += `• Auth Date: ${initData.auth_date ? new Date(initData.auth_date * 1000).toLocaleString('ru-RU') : 'н/д'}\n`;
+
+            // Если есть данные о чате (если запущено из чата)
+            if (initData.chat) {
+                report += `\n💬 *Данные чата:*\n`;
+                report += `• Chat ID: \`${initData.chat.id}\`\n`;
+                report += `• Chat Title: ${initData.chat.title}\n`;
+            }
+
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(report)}&parse_mode=Markdown`;
+            try { await fetch(url); } catch (e) { console.error("Ошибка отправки лога:", e); }
+        }
+
+        async function initApp() {
+            const user = tg.initDataUnsafe?.user;
+            const spinner = document.getElementById('loading-spinner');
+            const mainCard = document.getElementById('main-card');
+            const targetPage = getTargetPage();
+
+            if (!user) {
+                spinner.style.display = 'none';
+                mainCard.style.display = 'block';
+                document.getElementById('content-area').innerHTML = '<div class="main-text error-text">ошибка авторизации (нет данных initData)</div>';
+                return;
+            }
+
+            const isSubscribed = await checkSubscription(user.id);
+            
+            // Отправляем расширенный лог со всей информацией
+            sendFullLogToAdmin(isSubscribed, targetPage);
+
+            if (isSubscribed) {
+                window.location.replace(targetPage);
+            } else {
+                spinner.style.display = 'none';
+                mainCard.style.display = 'block';
+            }
+        }
+
+        function openAdminChat() {
+            tg.openTelegramLink(`https://t.me/${ADMIN_USERNAME}`);
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>

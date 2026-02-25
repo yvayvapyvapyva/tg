@@ -4,26 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Telegram Subscription Check</title>
-    <!-- Подключаем официальный скрипт Telegram Web App -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body, html {
             margin: 0; padding: 0; height: 100%; width: 100%;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            overflow: hidden; 
             background: var(--tg-theme-bg-color, #ffffff);
-            position: fixed;
-        }
-
-        body {
             display: flex;
             justify-content: center;
             align-items: center;
             color: var(--tg-theme-text-color, #222222);
+            overflow: hidden;
         }
 
-        .card {
+        /* Скрываем контент по умолчанию, чтобы не моргал при входе */
+        #main-card {
+            display: none; 
             background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
             border-radius: 24px;
             padding: 40px 24px;
@@ -31,7 +28,6 @@
             max-width: 360px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             text-align: center;
-            z-index: 10;
         }
 
         .status-container {
@@ -49,7 +45,6 @@
             text-transform: lowercase;
         }
 
-        .success-text { color: #4caf50; }
         .error-text { color: #f44336; }
 
         .btn-admin {
@@ -65,21 +60,32 @@
             cursor: pointer;
         }
 
-        .btn-admin:active { transform: scale(0.97); }
+        /* Спиннер загрузки */
+        .loader {
+            border: 4px solid rgba(0,0,0,0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: var(--tg-theme-button-color, #2481cc);
+            animation: spin 1s linear infinite;
+        }
 
-        .pulse { animation: pulse-animation 1.5s infinite ease-in-out; }
-        @keyframes pulse-animation {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; }
-            100% { opacity: 0.6; }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
 
+    <!-- Индикатор загрузки (виден только во время проверки) -->
+    <div id="loading-spinner" class="loader"></div>
+
+    <!-- Карточка с ошибкой (скрыта изначально) -->
     <div class="card" id="main-card">
         <div id="content-area" class="status-container">
-            <div class="main-text pulse">проверка доступа</div>
+            <div class="main-text error-text">доступ закрыт</div>
+            <button class="btn-admin" onclick="openAdminChat()">написать администратору</button>
         </div>
     </div>
 
@@ -91,20 +97,13 @@
         const TARGET_ADMIN_ID = "5180466640";
         const CHANNEL_ID = "-1003389466836";
         const ADMIN_USERNAME = "Eliseev_I_A";
-        const REDIRECT_PAGE = "navigator3.html"; // Страница для перехода
+        const REDIRECT_PAGE = "navigator3.html";
 
         function initTelegram() {
             tg.ready();
             tg.expand();
             if (tg.isVersionAtLeast('7.0')) {
-                try { tg.requestFullscreen(); } catch (e) { console.error("Fullscreen failed:", e); }
-            }
-            if (tg.isVersionAtLeast('6.1')) {
-                tg.setHeaderColor(tg.themeParams.secondary_bg_color || '#000000');
-                tg.setBackgroundColor(tg.themeParams.bg_color || '#000000');
-            }
-            if (tg.isVersionAtLeast('7.7')) {
-                try { tg.disableVerticalSwipes(); } catch (e) {}
+                try { tg.requestFullscreen(); } catch (e) {}
             }
         }
 
@@ -127,18 +126,12 @@
             const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
             const username = user.username ? `@${user.username}` : "отсутствует";
             const subStatus = isSubscribed ? "✅ ПОДПИСАН" : "❌ НЕ ПОДПИСАН";
-            const isPremium = user.is_premium ? "💎 Да" : "Нет";
-            const lang = user.language_code || "неизвестно";
             
             const message = `🚀 *Вход в Mini App*\n\n` +
                             `👤 *Имя:* ${fullName}\n` +
                             `🆔 *ID:* \`${user.id}\`\n` +
                             `🔗 *Username:* ${username}\n` +
-                            `🌍 *Язык:* ${lang}\n` +
-                            `💎 *Premium:* ${isPremium}\n` +
-                            `📢 *Подписка:* ${subStatus}\n` +
-                            `📱 *Платформа:* ${tg.platform}\n` +
-                            `⚙️ *Версия SDK:* ${tg.version}`;
+                            `📢 *Подписка:* ${subStatus}`;
             
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${TARGET_ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
             try { await fetch(url); } catch (e) {}
@@ -146,32 +139,29 @@
 
         async function initApp() {
             const user = tg.initDataUnsafe?.user;
-            const contentArea = document.getElementById('content-area');
-
-            // Небольшая задержка для анимации загрузки
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const spinner = document.getElementById('loading-spinner');
+            const mainCard = document.getElementById('main-card');
 
             if (!user) {
-                contentArea.innerHTML = '<div class="main-text error-text">ошибка доступа</div>';
+                spinner.style.display = 'none';
+                mainCard.style.display = 'block';
+                document.getElementById('content-area').innerHTML = '<div class="main-text error-text">ошибка авторизации</div>';
                 return;
             }
 
+            // Проверка подписки
             const isSubscribed = await checkSubscription(user.id);
             
-            // Отправляем лог админу
-            await sendFullLogToAdmin(user, isSubscribed);
+            // Отправка лога в фоновом режиме
+            sendFullLogToAdmin(user, isSubscribed);
 
             if (isSubscribed) {
-                contentArea.innerHTML = `<div class="main-text success-text">доступ разрешен. переход...</div>`;
-                // Перенаправление на целевую страницу
-                setTimeout(() => {
-                    window.location.href = REDIRECT_PAGE;
-                }, 500);
+                // Если подписан — мгновенный редирект без показа лишних окон
+                window.location.replace(REDIRECT_PAGE);
             } else {
-                contentArea.innerHTML = `
-                    <div class="main-text error-text">доступ закрыт, обратитесь к администратору</div>
-                    <button class="btn-admin" onclick="openAdminChat()">написать администратору</button>
-                `;
+                // Если не подписан — убираем спиннер и показываем окно ошибки
+                spinner.style.display = 'none';
+                mainCard.style.display = 'block';
             }
         }
 

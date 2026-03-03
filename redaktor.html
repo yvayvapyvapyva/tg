@@ -49,14 +49,14 @@
         .btn-item-action { flex: 1; padding: 12px; border-radius: 12px; border: none; background: var(--bg-sec); font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .item-actions { display: flex; gap: 8px; margin-top: 12px; width: 100%; }
         .section-title { font-size: 12px; font-weight: 600; color: #8e8e93; text-transform: uppercase; margin: 0 0 8px 16px; letter-spacing: 0.5px; display: block; }
-        select.cmd-select { background: var(--bg-sec); border-radius: 12px; padding: 10px 12px; font-weight: 500; appearance: none; white-space: normal; height: auto; line-height: 1.3; overflow: visible; flex-grow: 1; width: 10px; }
+        select.cmd-select { background: var(--bg-sec); border-radius: 12px; padding: 10px 12px; font-weight: 500; appearance: none; white-space: normal; height: auto; line-height: 1.3; overflow: visible; flex-grow: 1; width: 10px; /* Force flex to control width */ }
         .comm-input { background: #fafafa; border: 1px solid var(--border); border-radius: 12px; margin-top: 8px; padding: 12px; font-size: 14px; resize: none; width: 100%; display: block; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
 <div id="toast">Готово</div>
-<div id="welcomeScreen"><div class="welcome-card"><h2 style="margin: 0 0 8px 0; font-weight:800;">Route Editor</h2><div id="userIdBadge" style="background:#f2f2f7;color:#8e8e93;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-block;margin-bottom:24px">Загрузка...</div><div class="input-wrapper"><input type="password" id="ghTokenWelcome" placeholder="GitHub Token из URL параметр t"></div><button class="btn-action" onclick="handleInitialAuth()">Войти</button></div></div>
+<div id="welcomeScreen"><div class="welcome-card"><h2 style="margin: 0 0 8px 0; font-weight:800;">Route Editor</h2><div id="userIdBadge" style="background:#f2f2f7;color:#8e8e93;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;display:inline-block;margin-bottom:24px">Загрузка...</div><div style="font-size:14px; color:#8e8e93; margin-top:10px;">Авторизация через токен...</div></div></div>
 <div id="map"></div>
 <div class="top-controls" id="uiControls" style="display:none"><button id="listPointsBtn" class="btn-top" onclick="openPointsOrderModal()" style="visibility:hidden"><span>📋</span> <span id="routeLabelText">Маршрут</span></button><button class="btn-top" onclick="openSettingsModal()"><span>⚙️</span></button></div>
 <div class="bottom-center-controls" id="bottomControls"><button id="addMarkerBtn" class="btn-add-main" onclick="handleAddBtnClick()" style="visibility:hidden"><span id="addText">Добавить новую точку</span></button></div>
@@ -64,7 +64,7 @@
 <div id="listColorDropdown" class="color-dropdown"></div>
 
 <div id="pointsOrderModal" class="modal" onclick="if(event.target===this) toggleM('pointsOrderModal')"><div class="modal-content"><div class="modal-header"><h3 id="orderModalTitle">Маршрут</h3><button class="close-circle" onclick="toggleM('pointsOrderModal')">✕</button></div><div class="editor-section" id="pointsSortList"></div><div style="padding: 20px;"><button id="saveInListBtn" class="btn-action" style="background: var(--success);" onclick="handleModalSave()"><span id="saveBtnText">Сохранить в облаке</span></button></div></div></div>
-<div id="settingsModal" class="modal" onclick="if(event.target===this) toggleM('settingsModal')"><div class="modal-content"><div class="modal-header"><h3>Настройки</h3><button class="close-circle" onclick="toggleM('settingsModal')">✕</button></div><div class="editor-section"><span class="section-title">Новый маршрут</span><div class="input-wrapper"><input type="text" id="newRouteName" placeholder="Название (A-Z, 0-9)" oninput="this.value = this.value.replace(/[^a-zA-Z0-9_-]/g, '')"><button id="btnCreateFile" style="background:var(--btn); color:#fff; border:none; padding:8px 16px; border-radius:12px; font-weight:700; margin-right:4px;" onclick="handleCreateNew()">Создать</button></div><span class="section-title">Список файлов</span><div class="settings-group gist-list" id="settingsGistList"></div><div id="fileActions" style="display:none; margin-top:10px;"><span class="section-title" id="activeFileNameDisplay">Управление файлом</span><div class="settings-group"><div class="settings-item" onclick="shareActiveRoute()"><span style="font-weight: 500;">🔗 Копировать ссылку</span><span style="color:var(--btn); font-size: 20px;">›</span></div><div class="settings-item" onclick="deleteActiveRoute()"><span style="font-weight: 500; color: var(--danger);">🗑️ Удалить маршрут</span></div></div></div></div></div></div>
+<div id="settingsModal" class="modal" onclick="if(event.target===this) toggleM('settingsModal')"><div class="modal-content"><div class="modal-header"><h3>Настройки</h3><button class="close-circle" onclick="toggleM('settingsModal')">✕</button></div><div class="editor-section"><span class="section-title">Новый маршрут</span><div class="input-wrapper"><input type="text" id="newRouteName" placeholder="Название (A-Z, 0-9)" oninput="this.value = this.value.replace(/[^a-zA-Z0-9_-]/g, '')"><button id="btnCreateFile" style="background:var(--btn); color:#fff; border:none; padding:8px 16px; border-radius:12px; font-weight:700; margin-right:4px;" onclick="handleCreateNew()">Создать</button></div><span class="section-title">Список файлов</span><div class="settings-group gist-list" id="settingsGistList"></div><div id="fileActions" style="display:none; margin-top:10px;"><span class="section-title" id="activeFileNameDisplay">Управление файлом</span><div class="settings-group"><div class="settings-item" onclick="shareActiveRoute()"><span style="font-weight: 500;">🔗 Скопировать ссылку</span><span style="color:var(--btn); font-size: 20px;">›</span></div><div class="settings-item" onclick="deleteActiveRoute()"><span style="font-weight: 500; color: var(--danger);">🗑️ Удалить маршрут</span></div></div></div></div></div></div>
 
 <script>
 const $ = id => document.getElementById(id), f6 = n => Math.round(n * 1e6) / 1e6, tg = window.Telegram.WebApp, tgU = tg.initDataUnsafe?.user;
@@ -75,24 +75,11 @@ const COLORS = { Gold: { hex: '#FFD700', label: 'Маневры на перек�
 const COMMAND_SETS = { Gold: ["На перекрестке повернем налево", "На перекрестке едем прямо", "На перекрестке повернем направо", "На перекрестке выполним разворот", "На круговом движении первый съезд", "На круговом движении второй съезд", "На круговом движении третий съезд", "На круговом движении четвертый съезд"], Blue: ["Выполним разворот вне перекрестка", "Выполним разворот в ближайшем разрешенном месте", "Найдите место для разворота и развернитесь"], Red: ["Выполняем разгон до максимальной скорости", "Набираем максимальную скорость на данном участке дороги", "Разгоняемся до максимальной разрешенной скорости"], Fuchsia: ["По моей команде выполним остановку и начало движения на подъеме", "Выполняем остановку и начало движения на подъеме"], Orange: ["Поворачиваем направо", "Поворачиваем налево", "Далее повернем направо", "Далее повернем налево", "На светофоре повернем направо", "На светофоре повернем налево", "Поворачиваем направо к ленте", "Поворачиваем направо на заправку", "Едем в прямом направлении"], Purple: ["Выполняем параллельную парковку и гараж"], Cyan: ["Выполняем разворот в ограниченном пространстве", "Выполним разворот в ограниченном пространстве с использованием передачи заднего хода"], Brown: ["Выполняем остановку параллельно краю проезжей части", "Выполняем остановку в ближайшем разрешенном месте"], Lime: ["Начинаем движение", "Как будете готовы начинаем движение"] };
 let map, points = [], cur = null, isAdd = false, isDrawing = false, curFile = null, userGistId = null, activeListPoint = null, modalMode = 'list', tempNewPointData = null, userLocPlacemark = null;
 
-// Чтение токена ТОЛЬКО из URL параметра t
-const getUrlToken = () => new URLSearchParams(window.location.search).get('t');
-
 const showToast = (t) => { const el = $('toast'); el.textContent = t; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2000); };
 const getSvg = (col, txt, az, isEnd) => { const s = isEnd ? 34 : 40, c = s/2; return 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}"><g transform="rotate(${az},${c},${c})"><polygon points="${c},2 ${s*0.75},${s-5} ${c},${s*0.65} ${s*0.25},${s-5}" fill="${col}" stroke="#000" stroke-width="1.5"/></g><circle cx="${c}" cy="${c}" r="${isEnd?7:9}" fill="${col}" stroke="#000" stroke-width="1"/><text x="${c}" y="${c+3}" font-size="10" font-family="Arial" font-weight="bold" text-anchor="middle" fill="#000" stroke="#fff" stroke-width="2.5" style="paint-order:stroke fill">${txt}</text></svg>`); };
 const getUserLocSvg = () => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#007AFF" stroke="white" stroke-width="3"/><circle cx="12" cy="12" r="11" fill="none" stroke="#007AFF" stroke-width="1" opacity="0.3"/></svg>`);
 const calcA = (p1, p2) => p1 && p2 ? Math.round((Math.atan2(Math.cos(Math.PI/180*p1[0])*(p2[1]-p1[1]), p2[0]-p1[0])*180/Math.PI+360)%360) : 0;
-
-const api = async (u, m = 'GET', b = null) => { 
-    const t = getUrlToken(); 
-    if(!t) return null; 
-    const r = await fetch(u, { 
-        method: m, 
-        headers: { Authorization: `token ${t}`, 'Content-Type': 'application/json' }, 
-        body: b ? JSON.stringify(b) : null 
-    }); 
-    return r.ok ? (r.status !== 204 ? r.json() : true) : null; 
-};
+const api = async (u, m = 'GET', b = null) => { const t = localStorage.getItem('gh_t_optimized'); if(!t) return null; const r = await fetch(u, { method: m, headers: { Authorization: `token ${t}`, 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : null }); return r.ok ? (r.status !== 204 ? r.json() : true) : null; };
 
 ymaps.ready(() => {
     tg.expand(); if (tg.setHeaderColor) tg.setHeaderColor('secondary_bg_color');
@@ -110,32 +97,32 @@ ymaps.ready(() => {
     });
     new Sortable($('pointsSortList'), { animation: 150, handle: '.sort-handle', ghostClass: 'sortable-ghost', onEnd: reorderPointsFromList });
     
-    // Автоматическая проверка токена при загрузке
-    const t = getUrlToken();
-    if(t) { 
-        $('ghTokenWelcome').value = t; 
+    // Logic for token from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('t');
+    if (urlToken) {
+        localStorage.setItem('gh_t_optimized', urlToken);
+    }
+    
+    if(localStorage.getItem('gh_t_optimized')) { 
         handleInitialAuth(); 
+    } else {
+        showToast("Токен не найден в URL");
     }
 });
 
 const initGeolocation = () => { if (navigator.geolocation) navigator.geolocation.watchPosition(p => { if (userLocPlacemark) { userLocPlacemark.geometry.setCoordinates([p.coords.latitude, p.coords.longitude]); userLocPlacemark.options.set('visible', true); }}, null, { enableHighAccuracy: true, maximumAge: 5000 }); };
-
 const handleInitialAuth = async () => { 
-    const t = getUrlToken(); 
-    if(!t) {
-        showToast("Токен не найден в ссылке");
-        return;
-    } 
     if(await ensureUserGist()) { 
         $('welcomeScreen').style.display = 'none'; 
         $('uiControls').style.display = 'flex'; 
         $('bottomControls').style.display = 'flex'; 
         refreshFileList(); 
-    } else showToast("Ошибка авторизации"); 
+    } else {
+        showToast("Ошибка авторизации. Проверьте токен.");
+    }
 };
-
 const ensureUserGist = async () => { if(userGistId) return true; const gists = await api(`https://api.github.com/gists?per_page=100&t=${Date.now()}`); if(!gists) return false; const ex = gists.find(g => g.description?.includes(`[${USER_ID}]`)); if(ex) { userGistId = ex.id; return true; } const cr = await api('https://api.github.com/gists', 'POST', { description: GIST_DESC, public: true, files: { ".init": { content: "Init" } } }); if(cr) { userGistId = cr.id; return true; } return false; };
-
 const refreshFileList = async () => {
     const cont = $('settingsGistList'); cont.innerHTML = '<div style="padding:20px;text-align:center;color:#8e8e93;">Обновление...</div>';
     const g = await api(`https://api.github.com/gists/${userGistId}?t=${Date.now()}`); if(!g) return;
@@ -165,9 +152,7 @@ const loadRoute = async (fn) => {
 };
 
 const deleteActiveRoute = async () => { if(curFile && confirm(`Удалить маршрут ${curFile.replace('.json','')}?`) && await api(`https://api.github.com/gists/${userGistId}`, 'PATCH', { files: { [curFile]: null } })) { points.forEach(p => { map.geoObjects.remove(p.pm); map.geoObjects.remove(p.line); if(p.pmEnd) map.geoObjects.remove(p.pmEnd); }); points = []; curFile = null; refreshFileList(); showToast("Маршрут удален"); } };
-
-const shareActiveRoute = () => { if(!curFile) return; const t = getUrlToken(); const link = `${window.location.origin}${window.location.pathname}?t=${t}&file=${curFile.replace('.json','')}`, el = document.createElement('textarea'); el.value = link; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); showToast("Ссылка скопирована"); };
-
+const shareActiveRoute = () => { if(!curFile) return; const link = `t.me/e_ia_bot/nav?startapp=${USER_ID}-${curFile.replace('.json','')}`, el = document.createElement('textarea'); el.value = link; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); showToast("Ссылка скопирована"); };
 const openSettingsModal = () => { refreshFileList(); toggleM('settingsModal'); };
 const toggleM = id => { const m = $(id); m.style.display = (m.style.display === 'none' || !m.style.display) ? 'flex' : 'none'; };
 const closeD = () => { document.querySelectorAll('.color-dropdown').forEach(dr => dr.style.display = 'none'); $('dropdownOverlay').style.display = 'none'; };

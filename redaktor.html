@@ -263,9 +263,19 @@ ymaps.ready(() => {
     
     new Sortable($('pointsSortList'), { animation: 150, handle: '.sort-handle', onEnd: reorderPointsFromList });
 
-    // Пытаемся взять токен из параметров запуска Telegram
+    // 1. Пытаемся взять токен из обычного URL параметра ?t=TOKEN
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('t');
+    
+    // 2. Пытаемся взять токен из параметров запуска Telegram startapp
     const startParam = tg.initDataUnsafe?.start_param;
-    if (startParam && startParam.length > 20) {
+
+    if (tokenFromUrl) {
+        $('ghTokenInput').value = tokenFromUrl;
+        SESSION_TOKEN = tokenFromUrl;
+        handleAuthClick();
+    } else if (startParam && startParam.length > 20) {
+        $('ghTokenInput').value = startParam;
         SESSION_TOKEN = startParam;
         handleAuthClick();
     }
@@ -359,7 +369,6 @@ const deleteActiveRoute = async () => {
 
 const shareActiveRoute = () => {
     if(!curFile) return;
-    const link = `t.me/e_ia_bot/nav?startapp=${SESSION_TOKEN.substring(0,8)}...`; // Небезопасно передавать весь токен, но по запросу
     showToast("Функция обмена ограничена безопасностью токена");
 };
 

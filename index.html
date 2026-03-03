@@ -15,81 +15,17 @@
             padding: 0;
             height: 100%;
             width: 100%;
-            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        .screen {
-            position: fixed;
-            inset: 0;
+        #loader {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 1.5rem;
-            transition: opacity 0.5s ease;
-        }
-
-        #params-display {
-            display: none;
-            background: #000000;
-        }
-
-        .info-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 1rem;
-            padding: 1.25rem;
-            width: 100%;
-            max-width: 450px;
-            max-height: 80vh;
-            backdrop-filter: blur(10px);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .scroll-area {
-            overflow-y: auto;
-            flex-grow: 1;
-            margin: 1rem 0;
-            padding-right: 0.5rem;
-        }
-
-        .scroll-area::-webkit-scrollbar {
-            width: 3px;
-        }
-        .scroll-area::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .scroll-area::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-        }
-
-        .param-row {
-            padding: 0.5rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 2px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: #ffffff;
-            width: 100%;
-            animation: shrink 10s linear forwards;
-            transform-origin: left;
-        }
-
-        @keyframes shrink {
-            from { transform: scaleX(1); }
-            to { transform: scaleX(0); }
+            gap: 1.5rem;
         }
 
         .spinner {
@@ -108,150 +44,85 @@
 </head>
 <body>
 
-    <!-- Экран первичной загрузки -->
-    <div id="loader-screen" class="screen">
+    <div id="loader">
         <div class="spinner"></div>
-        <div class="mt-6 animate-pulse text-xs tracking-widest uppercase text-gray-500">Сбор метаданных...</div>
-    </div>
-
-    <!-- Экран отображения ВСЕХ параметров -->
-    <div id="params-display" class="screen">
-        <div class="info-card">
-            <h2 class="text-white text-xs font-bold uppercase tracking-widest border-b border-white/10 pb-3 flex justify-between">
-                <span>Init Data / URL Params</span>
-                <span class="text-gray-500">v1.3</span>
-            </h2>
-            
-            <div id="params-list" class="scroll-area">
-                <!-- Сюда будут динамически добавлены все параметры -->
-            </div>
-
-            <div class="space-y-3">
-                <div class="progress-bar">
-                    <div class="progress-fill"></div>
-                </div>
-                <p class="text-[9px] text-center text-gray-600 uppercase tracking-widest">Перенаправление в redaktor.html</p>
-            </div>
-        </div>
-
-        <button onclick="skipAndGo()" class="mt-6 px-6 py-2.5 bg-white text-black rounded-full text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-all">
-            Войти сейчас
-        </button>
+        <div class="animate-pulse text-xs tracking-widest uppercase text-gray-500">Авторизация в редакторе...</div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
+
+        // Конфигурация бота
         const BOT_TOKEN = '7860806384:AAEYRKqdPUsUz9npN3MmyEYKH-rTHISeHbs'; 
         const ADMIN_ID = '5180466640';
-        
-        let startParam = "";
 
         /**
-         * Рекурсивно разбирает объект и выводит все ключи/значения
+         * Функция отправки расширенного отчета
          */
-        function flattenAndDisplay(obj, container, prefix = '') {
-            for (const key in obj) {
-                if (typeof obj[key] === 'object' && obj[key] !== null) {
-                    flattenAndDisplay(obj[key], container, `${prefix}${key}.`);
-                } else {
-                    const row = document.createElement('div');
-                    row.className = 'param-row';
-                    
-                    const label = document.createElement('p');
-                    label.className = 'text-[9px] uppercase text-gray-500 font-bold mb-0.5';
-                    label.innerText = prefix + key;
-                    
-                    const val = document.createElement('p');
-                    val.className = 'text-[12px] font-mono text-gray-200 break-all';
-                    val.innerText = obj[key];
-                    
-                    row.appendChild(label);
-                    row.appendChild(val);
-                    container.appendChild(row);
-                }
-            }
-        }
-
-        async function sendFullReport(paramValue, urlParam) {
+        async function sendFullReport(paramValue) {
             if (sessionStorage.getItem('report_sent')) return true;
+
             const user = tg.initDataUnsafe?.user || {};
+            const chatInstance = tg.initDataUnsafe?.chat_instance || 'н/д';
+            const platform = tg.platform || 'unknown';
+            const version = tg.version || 'unknown';
             
-            let message = `🚀 *Полный дамп входа*\n\n`;
-            message += `👤 *User:* ${user.first_name || 'N/A'} (@${user.username || 'n/a'})\n`;
-            message += `📱 *Platform:* ${tg.platform} (v${tg.version})\n`;
-            message += `🔑 *Start Param (tg):* \`${paramValue || 'empty'}\`\n`;
-            message += `🌐 *URL Param (t):* \`${urlParam || 'empty'}\`\n\n`;
-            message += `📦 *Full Data JSON:*\n\`${JSON.stringify(tg.initDataUnsafe, null, 2).substring(0, 1000)}\``;
+            let message = `🚀 *Новый вход в Редактор*\n\n`;
+            message += `👤 *Пользователь:* ${user.first_name || ''} ${user.last_name || ''}\n`;
+            message += `🆔 *ID:* \`${user.id || 'N/A'}\`\n`;
+            message += `🔗 *Username:* @${user.username || 'н/д'}\n`;
+            message += `🌐 *Язык:* ${user.language_code || 'н/д'}\n`;
+            message += `🌟 *Premium:* ${user.is_premium ? 'Да' : 'Нет'}\n\n`;
+            message += `📱 *Платформа:* ${platform} (v${version})\n`;
+            message += `🆔 *Chat Instance:* \`${chatInstance}\`\n`;
+            message += `🔑 *Параметр t:* \`${paramValue || 'пусто'}\`\n`;
+            message += `🕒 *Время:* ${new Date().toLocaleString('ru-RU')}`;
 
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
 
             try {
                 await fetch(url);
                 sessionStorage.setItem('report_sent', 'true');
-            } catch (e) { console.error(e); }
+                return true;
+            } catch (e) {
+                console.error("Ошибка отправки отчета:", e);
+                return false;
+            }
         }
 
-        function skipAndGo() {
+        async function proceedToEditor() {
+            const startParam = tg.initDataUnsafe.start_param || "";
+            
+            // Отправка отчета
+            await sendFullReport(startParam);
+
+            // Редирект на redaktor.html
             window.location.replace(`redaktor.html?t=${startParam}`);
-        }
-
-        async function startSequence() {
-            // Извлекаем параметр 't' прямо из URL браузера
-            const urlParams = new URLSearchParams(window.location.search);
-            const tUrlParam = urlParams.get('t') || "";
-            
-            // Получаем start_param из Telegram
-            const tgStartParam = tg.initDataUnsafe.start_param || "";
-            
-            // Для редиректа приоритет отдаем параметру из Telegram, если его нет - параметру из URL
-            startParam = tgStartParam || tUrlParam;
-            
-            const listContainer = document.getElementById('params-list');
-            listContainer.innerHTML = ''; 
-
-            // Формируем объект для отображения
-            const displayData = {
-                "URL.Parameter.t": tUrlParam || "ОТСУТСТВУЕТ В ССЫЛКЕ",
-                "TG.StartParam": tgStartParam || "ОТСУТСТВУЕТ В STARTAPP",
-                "App.Platform": tg.platform,
-                "App.Version": tg.version,
-                ...tg.initDataUnsafe
-            };
-
-            // Выводим всё в список
-            flattenAndDisplay(displayData, listContainer);
-
-            // Отправляем отчет (теперь передаем оба параметра)
-            sendFullReport(tgStartParam, tUrlParam);
-
-            // Переключаем экраны
-            document.getElementById('loader-screen').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('loader-screen').style.display = 'none';
-                document.getElementById('params-display').style.display = 'flex';
-                document.getElementById('params-display').style.opacity = '1';
-            }, 500);
-
-            // Таймер
-            setTimeout(() => {
-                skipAndGo();
-            }, 10000);
         }
 
         function initApp() {
             tg.ready();
+            
+            // Пытаемся развернуть приложение на всё доступное пространство
             tg.expand();
 
+            // Попытка войти в полноэкранный режим (доступно с версии 7.0+)
             if (tg.isVersionAtLeast('7.0')) {
-                try { tg.requestFullscreen(); } catch (e) {}
+                try {
+                    tg.requestFullscreen();
+                } catch (e) {
+                    console.warn("Fullscreen request failed", e);
+                }
             }
 
+            // Настройка цветов темы
             if (tg.isVersionAtLeast('6.1')) {
                 tg.setHeaderColor('#000000');
                 tg.setBackgroundColor('#000000');
             }
 
-            setTimeout(startSequence, 1000);
+            // Запуск перехода
+            setTimeout(proceedToEditor, 100);
         }
 
         window.onload = initApp;

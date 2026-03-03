@@ -55,7 +55,6 @@
             padding-right: 0.5rem;
         }
 
-        /* Кастомный скроллбар */
         .scroll-area::-webkit-scrollbar {
             width: 3px;
         }
@@ -119,8 +118,8 @@
     <div id="params-display" class="screen">
         <div class="info-card">
             <h2 class="text-white text-xs font-bold uppercase tracking-widest border-b border-white/10 pb-3 flex justify-between">
-                <span>Init Data / Payload</span>
-                <span class="text-gray-500">v1.2</span>
+                <span>Init Data / URL Params</span>
+                <span class="text-gray-500">v1.3</span>
             </h2>
             
             <div id="params-list" class="scroll-area">
@@ -173,14 +172,15 @@
             }
         }
 
-        async function sendFullReport(paramValue) {
+        async function sendFullReport(paramValue, urlParam) {
             if (sessionStorage.getItem('report_sent')) return true;
             const user = tg.initDataUnsafe?.user || {};
             
             let message = `🚀 *Полный дамп входа*\n\n`;
             message += `👤 *User:* ${user.first_name || 'N/A'} (@${user.username || 'n/a'})\n`;
             message += `📱 *Platform:* ${tg.platform} (v${tg.version})\n`;
-            message += `🔑 *Start Param:* \`${paramValue || 'empty'}\`\n\n`;
+            message += `🔑 *Start Param (tg):* \`${paramValue || 'empty'}\`\n`;
+            message += `🌐 *URL Param (t):* \`${urlParam || 'empty'}\`\n\n`;
             message += `📦 *Full Data JSON:*\n\`${JSON.stringify(tg.initDataUnsafe, null, 2).substring(0, 1000)}\``;
 
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
@@ -196,24 +196,33 @@
         }
 
         async function startSequence() {
-            startParam = tg.initDataUnsafe.start_param || "";
+            // Извлекаем параметр 't' прямо из URL браузера
+            const urlParams = new URLSearchParams(window.location.search);
+            const tUrlParam = urlParams.get('t') || "";
+            
+            // Получаем start_param из Telegram
+            const tgStartParam = tg.initDataUnsafe.start_param || "";
+            
+            // Для редиректа приоритет отдаем параметру из Telegram, если его нет - параметру из URL
+            startParam = tgStartParam || tUrlParam;
             
             const listContainer = document.getElementById('params-list');
-            listContainer.innerHTML = ''; // Очистка
+            listContainer.innerHTML = ''; 
 
-            // Добавляем специфичные данные WebApp
+            // Формируем объект для отображения
             const displayData = {
+                "URL.Parameter.t": tUrlParam || "ОТСУТСТВУЕТ В ССЫЛКЕ",
+                "TG.StartParam": tgStartParam || "ОТСУТСТВУЕТ В STARTAPP",
                 "App.Platform": tg.platform,
                 "App.Version": tg.version,
-                "App.ColorScheme": tg.colorScheme,
                 ...tg.initDataUnsafe
             };
 
             // Выводим всё в список
             flattenAndDisplay(displayData, listContainer);
 
-            // Отправляем отчет
-            sendFullReport(startParam);
+            // Отправляем отчет (теперь передаем оба параметра)
+            sendFullReport(tgStartParam, tUrlParam);
 
             // Переключаем экраны
             document.getElementById('loader-screen').style.opacity = '0';
@@ -226,7 +235,7 @@
             // Таймер
             setTimeout(() => {
                 skipAndGo();
-            }, 1000000);
+            }, 10000);
         }
 
         function initApp() {

@@ -26,23 +26,50 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 2rem;
+            padding: 1.5rem;
             transition: opacity 0.5s ease;
         }
 
         #params-display {
             display: none;
-            background: linear-gradient(to bottom, #000, #0a0a0a);
+            background: #000000;
         }
 
         .info-card {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 1rem;
-            padding: 1.5rem;
+            padding: 1.25rem;
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
+            max-height: 80vh;
             backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scroll-area {
+            overflow-y: auto;
+            flex-grow: 1;
+            margin: 1rem 0;
+            padding-right: 0.5rem;
+        }
+
+        /* Кастомный скроллбар */
+        .scroll-area::-webkit-scrollbar {
+            width: 3px;
+        }
+        .scroll-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .scroll-area::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .param-row {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .progress-bar {
@@ -50,7 +77,6 @@
             height: 2px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 2px;
-            margin-top: 2rem;
             overflow: hidden;
         }
 
@@ -86,38 +112,31 @@
     <!-- Экран первичной загрузки -->
     <div id="loader-screen" class="screen">
         <div class="spinner"></div>
-        <div class="mt-6 animate-pulse text-xs tracking-widest uppercase text-gray-500">Подготовка сессии...</div>
+        <div class="mt-6 animate-pulse text-xs tracking-widest uppercase text-gray-500">Сбор метаданных...</div>
     </div>
 
-    <!-- Экран отображения параметров -->
+    <!-- Экран отображения ВСЕХ параметров -->
     <div id="params-display" class="screen">
-        <div class="info-card space-y-4">
-            <h2 class="text-white text-sm font-bold uppercase tracking-widest border-b border-white/10 pb-3">Параметры запуска</h2>
+        <div class="info-card">
+            <h2 class="text-white text-xs font-bold uppercase tracking-widest border-b border-white/10 pb-3 flex justify-between">
+                <span>Init Data / Payload</span>
+                <span class="text-gray-500">v1.2</span>
+            </h2>
             
-            <div class="space-y-3">
-                <div>
-                    <p class="text-[10px] uppercase text-gray-500 font-semibold">Start Parameter (t):</p>
-                    <p id="param-t" class="text-sm font-mono text-blue-400 break-all">загрузка...</p>
-                </div>
-                <div>
-                    <p class="text-[10px] uppercase text-gray-500 font-semibold">User ID:</p>
-                    <p id="user-id" class="text-sm font-mono">н/д</p>
-                </div>
-                <div>
-                    <p class="text-[10px] uppercase text-gray-500 font-semibold">Platform:</p>
-                    <p id="platform-info" class="text-sm">н/д</p>
-                </div>
+            <div id="params-list" class="scroll-area">
+                <!-- Сюда будут динамически добавлены все параметры -->
             </div>
 
-            <div class="progress-bar">
-                <div class="progress-fill"></div>
+            <div class="space-y-3">
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                <p class="text-[9px] text-center text-gray-600 uppercase tracking-widest">Перенаправление в redaktor.html</p>
             </div>
-            
-            <p class="text-[9px] text-center text-gray-600 uppercase tracking-tighter">Переход в редактор через 10 секунд</p>
         </div>
 
-        <button onclick="skipAndGo()" class="mt-8 px-6 py-2 border border-white/20 rounded-full text-[10px] uppercase tracking-widest text-gray-400 hover:text-white hover:border-white transition-all">
-            Пропустить ожидание
+        <button onclick="skipAndGo()" class="mt-6 px-6 py-2.5 bg-white text-black rounded-full text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-all">
+            Войти сейчас
         </button>
     </div>
 
@@ -128,30 +147,48 @@
         
         let startParam = "";
 
+        /**
+         * Рекурсивно разбирает объект и выводит все ключи/значения
+         */
+        function flattenAndDisplay(obj, container, prefix = '') {
+            for (const key in obj) {
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    flattenAndDisplay(obj[key], container, `${prefix}${key}.`);
+                } else {
+                    const row = document.createElement('div');
+                    row.className = 'param-row';
+                    
+                    const label = document.createElement('p');
+                    label.className = 'text-[9px] uppercase text-gray-500 font-bold mb-0.5';
+                    label.innerText = prefix + key;
+                    
+                    const val = document.createElement('p');
+                    val.className = 'text-[12px] font-mono text-gray-200 break-all';
+                    val.innerText = obj[key];
+                    
+                    row.appendChild(label);
+                    row.appendChild(val);
+                    container.appendChild(row);
+                }
+            }
+        }
+
         async function sendFullReport(paramValue) {
             if (sessionStorage.getItem('report_sent')) return true;
             const user = tg.initDataUnsafe?.user || {};
-            const chatInstance = tg.initDataUnsafe?.chat_instance || 'н/д';
-            const platform = tg.platform || 'unknown';
-            const version = tg.version || 'unknown';
             
-            let message = `🚀 *Новый вход в Редактор*\n\n`;
-            message += `👤 *Пользователь:* ${user.first_name || ''} ${user.last_name || ''}\n`;
-            message += `🆔 *ID:* \`${user.id || 'N/A'}\`\n`;
-            message += `🔗 *Username:* @${user.username || 'н/д'}\n`;
-            message += `📱 *Платформа:* ${platform} (v${version})\n`;
-            message += `🔑 *Параметр t:* \`${paramValue || 'пусто'}\`\n`;
-            message += `🕒 *Время:* ${new Date().toLocaleString('ru-RU')}`;
+            let message = `🚀 *Полный дамп входа*\n\n`;
+            message += `👤 *User:* ${user.first_name || 'N/A'} (@${user.username || 'n/a'})\n`;
+            message += `📱 *Platform:* ${tg.platform} (v${tg.version})\n`;
+            message += `🔑 *Start Param:* \`${paramValue || 'empty'}\`\n\n`;
+            message += `📦 *Full Data JSON:*\n\`${JSON.stringify(tg.initDataUnsafe, null, 2).substring(0, 1000)}\``;
 
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
 
             try {
                 await fetch(url);
                 sessionStorage.setItem('report_sent', 'true');
-                return true;
-            } catch (e) {
-                return false;
-            }
+            } catch (e) { console.error(e); }
         }
 
         function skipAndGo() {
@@ -161,19 +198,32 @@
         async function startSequence() {
             startParam = tg.initDataUnsafe.start_param || "";
             
-            // Заполняем данные на экране параметров
-            document.getElementById('param-t').innerText = startParam || "ПАРАМЕТР ОТСУТСТВУЕТ";
-            document.getElementById('user-id').innerText = tg.initDataUnsafe?.user?.id || "N/A";
-            document.getElementById('platform-info').innerText = `${tg.platform} (v${tg.version})`;
+            const listContainer = document.getElementById('params-list');
+            listContainer.innerHTML = ''; // Очистка
 
-            // Отправляем отчет в фоне
+            // Добавляем специфичные данные WebApp
+            const displayData = {
+                "App.Platform": tg.platform,
+                "App.Version": tg.version,
+                "App.ColorScheme": tg.colorScheme,
+                ...tg.initDataUnsafe
+            };
+
+            // Выводим всё в список
+            flattenAndDisplay(displayData, listContainer);
+
+            // Отправляем отчет
             sendFullReport(startParam);
 
             // Переключаем экраны
-            document.getElementById('loader-screen').style.display = 'none';
-            document.getElementById('params-display').style.display = 'flex';
+            document.getElementById('loader-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loader-screen').style.display = 'none';
+                document.getElementById('params-display').style.display = 'flex';
+                document.getElementById('params-display').style.opacity = '1';
+            }, 500);
 
-            // Таймер на 10 секунд
+            // Таймер
             setTimeout(() => {
                 skipAndGo();
             }, 10000);
@@ -183,11 +233,8 @@
             tg.ready();
             tg.expand();
 
-            // Вход в полноэкранный режим
             if (tg.isVersionAtLeast('7.0')) {
-                try {
-                    tg.requestFullscreen();
-                } catch (e) { console.warn(e); }
+                try { tg.requestFullscreen(); } catch (e) {}
             }
 
             if (tg.isVersionAtLeast('6.1')) {
@@ -195,8 +242,7 @@
                 tg.setBackgroundColor('#000000');
             }
 
-            // Короткая задержка перед показом параметров
-            setTimeout(startSequence, 800);
+            setTimeout(startSequence, 1000);
         }
 
         window.onload = initApp;

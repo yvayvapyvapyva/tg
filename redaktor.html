@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8">
-    <title>Route Editor Pro | Auto-Auth</title>
+    <title>Route Editor Pro | Cloud Sync</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://api-maps.yandex.ru/2.1/?apikey=YANDEX_API_KEY&lang=ru_RU&suppressMapOpenBlock=true"></script>
@@ -101,7 +101,7 @@
 
 <div id="toast">Готово</div>
 
-<!-- Экран ожидания/авторизации без полей ввода -->
+<!-- Экран ожидания (убран ввод токена, только статус) -->
 <div id="welcomeScreen">
     <div class="welcome-card">
         <h2 style="margin:0 0 8px 0; font-weight: 800;">Route Editor</h2>
@@ -133,6 +133,7 @@
 <div id="dropdownOverlay" class="dropdown-overlay" onclick="closeD()"></div>
 <div id="listColorDropdown" class="color-dropdown"></div>
 
+<!-- Единое модальное окно для управления точками -->
 <div id="pointsOrderModal" class="modal" onclick="if(event.target===this) toggleM('pointsOrderModal')">
     <div class="modal-content">
         <div class="modal-header">
@@ -142,7 +143,7 @@
         <div class="editor-section" id="pointsSortList"></div>
         <div style="padding: 20px;">
             <button id="saveInListBtn" class="btn-action" style="background: var(--success);" onclick="handleModalSave()">
-                <span id="saveBtnText">Сохранить в облаке</span>
+                <span id="saveBtnText">Сохранить</span>
             </button>
         </div>
     </div>
@@ -187,6 +188,7 @@ const USER_UNAME = tgUser?.username ? `@${tgUser.username}` : "";
 const GIST_DESCRIPTION = `[${USER_ID}] User: ${USER_NAME} ${USER_UNAME}`;
 
 let SESSION_TOKEN = null;
+let userGistId = null, curFile = null;
 
 const COLORS = { 
     Gold: { hex: '#FFD700', label: 'Маневры на перекрестке' }, 
@@ -212,7 +214,8 @@ const COMMAND_SETS = {
     Lime: ["Начинаем движение", "Как будете готовы начинаем движение"]
 };
 
-let map, points = [], cur = null, isAdd = false, isDrawing = false, curFile = null, userGistId = null, activeListPoint = null;
+let map, points = [], cur = null, isAdd = false, isDrawing = false, activeListPoint = null, modalMode = 'list';
+let tempNewPointData = null;
 let userLocPlacemark = null;
 
 const showToast = (t) => { const el = $('toast'); el.textContent = t; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2000); };
@@ -247,7 +250,13 @@ ymaps.ready(() => {
     map.geoObjects.add(userLocPlacemark);
     initGeolocation();
 
-    map.events.add('click', e => { if(isAdd) { const p = addP(e.get('coords'), { color: 'Gold' }); startDrawingForPoint(p); } });
+    map.events.add('click', e => { 
+        if(isAdd) { 
+            const p = addP(e.get('coords'), tempNewPointData); 
+            startDrawingForPoint(p); 
+            stopAdd(); 
+        } 
+    });
     
     initColorDropdown('listColorDropdown', (h, n) => {
         if(activeListPoint) {
@@ -264,7 +273,7 @@ ymaps.ready(() => {
     
     new Sortable($('pointsSortList'), { animation: 150, handle: '.sort-handle', onEnd: reorderPointsFromList });
 
-    // Авто-авторизация
+    // Обработка токена из URL/Telegram
     const urlParams = new URLSearchParams(window.location.search);
     const t = urlParams.get('t') || tg.initDataUnsafe?.start_param;
     
@@ -276,18 +285,18 @@ ymaps.ready(() => {
     }
 });
 
-const handleAutoAuth = async () => {
+async function handleAutoAuth() {
     if(await ensureUserGist()) {
         $('welcomeScreen').style.display = 'none';
         $('uiControls').style.display = 'flex';
         $('bottomControls').style.display = 'flex';
         refreshFileList();
-    } else { 
+    } else {
         $('authStatus').innerHTML = '<p style="color:var(--danger)">Ошибка токена.<br>Проверьте права доступа.</p>';
     }
-};
+}
 
-const ensureUserGist = async () => {
+async function ensureUserGist() {
     if(userGistId) return true;
     const gists = await api(`https://api.github.com/gists?per_page=100&t=${Date.now()}`); 
     if(!gists) return false;
@@ -296,7 +305,7 @@ const ensureUserGist = async () => {
     const cr = await api('https://api.github.com/gists', 'POST', { description: GIST_DESCRIPTION, public: true, files: { ".init": { content: "Init" } } });
     if(cr) { userGistId = cr.id; return true; }
     return false;
-};
+}
 
 const refreshFileList = async () => {
     const cont = $('settingsGistList'); cont.innerHTML = '<div style="padding:20px; text-align:center; color:#8e8e93;">Обновление...</div>';
@@ -383,7 +392,11 @@ const updateCommandOptions = (select, colorName, currentValue = "") => {
 
 function addP(coords, data = null) {
     const p = { 
-        id: data?.id || (points.length + 1), color: data?.color || 'Gold', cmd: data?.cmd || '', comm: data?.comm || '', pts: data?.pts || [coords],
+        id: points.length + 1, 
+        color: data?.color || 'Gold', 
+        cmd: data?.cmd || (COMMAND_SETS[data?.color || 'Gold'][0]), 
+        comm: data?.comm || '', 
+        pts: data?.pts || [coords],
         pm: new ymaps.Placemark(coords, {}, { iconLayout: 'default#imageWithContent', iconImageSize: [40,40], iconImageOffset: [-20,-20], zIndex: 1000 }),
         line: new ymaps.Polyline(data?.pts || [coords], {}, { strokeWidth: 5, strokeOpacity: 0.8, zIndex: 500 }), pmEnd: null
     };
@@ -398,14 +411,14 @@ function addP(coords, data = null) {
     });
     p.pm.events.add('click', () => { if(!isAdd && !isDrawing) openEditPointModal(p); });
     map.geoObjects.add(p.pm); map.geoObjects.add(p.line);
-    points.push(p); updI(p); if (p.pts.length > 1) updPI(p);
+    points.push(p); 
+    recalculateIds();
     return p;
 }
 
 const startDrawingForPoint = p => { isAdd = false; isDrawing = true; $('addText').textContent = "Завершить путь"; $('addMarkerBtn').classList.add('drawing'); cur = p; p.line.editor.startDrawing(); };
 const stopDrawingMode = () => { if (cur) { cur.pm.options.set('draggable', false); cur.line.editor.stopEditing(); } isDrawing = false; $('addText').textContent = "Добавить новую точку"; $('addMarkerBtn').classList.remove('drawing'); cur = null; };
-const handleAddBtnClick = () => { if(isDrawing) stopDrawingMode(); else if(isAdd) stopAdd(); else startAdd(); };
-const startAdd = () => { isAdd = true; $('addText').textContent = "Нажмите на карту..."; $('addMarkerBtn').classList.add('active'); map.setCursor('crosshair'); };
+const handleAddBtnClick = () => { if(isDrawing) stopDrawingMode(); else if(isAdd) stopAdd(); else openCreatePointModal(); };
 const stopAdd = () => { isAdd = false; $('addText').textContent = "Добавить новую точку"; $('addMarkerBtn').classList.remove('active'); map.setCursor('grab'); };
 
 const updI = p => { 
@@ -429,7 +442,7 @@ function createPointCard(p, isSingle = false) {
     item.innerHTML = `
         ${!isSingle ? '<div class="sort-handle">☰</div>' : ''}
         <div class="item-main-row"><div class="point-number-text">${p.id}</div><div class="color-indicator-btn" style="background:${COLORS[p.color].hex}"></div><select class="cmd-select"></select></div>
-        <textarea class="comm-input" rows="2" placeholder="коментарий">${p.comm || ''}</textarea>
+        <textarea class="comm-input" rows="2" placeholder="Комментарий...">${p.comm || ''}</textarea>
         <div class="item-actions"><button class="btn-item-action btn-path">Путь</button><button class="btn-item-action btn-del" style="color:var(--danger)">Удалить</button></div>`;
     const sel = item.querySelector('.cmd-select');
     updateCommandOptions(sel, p.color, p.cmd);
@@ -446,33 +459,59 @@ function delPoint(p) { points = points.filter(x => x !== p); map.geoObjects.remo
 function startEditPath(p) { cur = p; isDrawing = true; $('addText').textContent = "Завершить"; $('addMarkerBtn').classList.add('drawing'); p.pm.options.set('draggable', true); p.line.editor.startEditing(); }
 
 function openPointsOrderModal() {
+    modalMode = 'list';
     const list = $('pointsSortList'); list.innerHTML = '';
     points.forEach(p => list.appendChild(createPointCard(p)));
     $('orderModalTitle').textContent = `Маршрут (${points.length})`;
+    $('saveBtnText').textContent = "Сохранить в облаке";
     toggleM('pointsOrderModal');
 }
 
 function openEditPointModal(p) {
+    modalMode = 'edit';
     const list = $('pointsSortList'); list.innerHTML = '';
     list.appendChild(createPointCard(p, true));
     $('orderModalTitle').textContent = `Точка ${p.id}`;
+    $('saveBtnText').textContent = "Готово";
     toggleM('pointsOrderModal');
 }
 
-function reorderPointsFromList() {
-    const ids = Array.from($('pointsSortList').children).map(c => parseInt(c.dataset.id));
-    points = ids.map(id => points.find(x => x.id === id));
-    recalculateIds();
+function openCreatePointModal() {
+    modalMode = 'create';
+    const list = $('pointsSortList'); list.innerHTML = '';
+    tempNewPointData = { id: points.length + 1, color: 'Gold', cmd: COMMAND_SETS.Gold[0], comm: '' };
+    list.appendChild(createPointCard(tempNewPointData, true));
+    $('orderModalTitle').textContent = "Новая точка";
+    $('saveBtnText').textContent = "Выбрать место";
+    toggleM('pointsOrderModal');
 }
 
-const handleModalSave = async () => {
-    if(!curFile) return;
+function handleModalSave() {
+    if (modalMode === 'list') saveGist();
+    else if (modalMode === 'edit') toggleM('pointsOrderModal');
+    else if (modalMode === 'create') { 
+        toggleM('pointsOrderModal'); 
+        isAdd = true; 
+        $('addMarkerBtn').classList.add('active'); 
+        $('addText').textContent = "Выберите место на карте"; 
+        map.setCursor('crosshair'); 
+    }
+}
+
+async function saveGist() {
+    if(!userGistId || !curFile) return;
     const btn = $('saveInListBtn'); btn.classList.add('loading');
-    const data = points.map(p => ({ id: p.id, color: p.color, cmd: p.cmd, comm: p.comm, pts: p.pts }));
-    const r = await api(`https://api.github.com/gists/${userGistId}`, 'PATCH', { files: { [curFile]: { content: JSON.stringify(data) } } });
+    const data = points.map(p => ({ id: p.id, color: p.color, pts: p.pts, cmd: p.cmd, comm: p.comm }));
+    const s = await api(`https://api.github.com/gists/${userGistId}`, 'PATCH', { files: { [curFile]: { content: JSON.stringify(data) } } });
     btn.classList.remove('loading');
-    if(r) { btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 1500); showToast("Сохранено"); }
-};
+    if(s) { btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 1500); showToast("Сохранено"); }
+}
+
+function reorderPointsFromList() {
+    const children = Array.from($('pointsSortList').children);
+    points = children.map(child => points.find(p => p.id == child.dataset.id)).filter(p => !!p);
+    recalculateIds();
+}
 
 const openSettingsModal = () => { refreshFileList(); toggleM('settingsModal'); };
 </script>

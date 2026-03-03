@@ -18,6 +18,7 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
         .spinner {
             width: 40px;
@@ -43,38 +44,44 @@
         const ADMIN_ID = '5180466640';
         const SALT = "lJrB9MOA42UceJ";
 
-        async function sendReport(combined) {
+        async function sendReport() {
             if (sessionStorage.getItem('report_sent')) return;
             
             const user = tg.initDataUnsafe?.user || {};
+            const chatInstance = tg.initDataUnsafe?.chat_instance || 'N/A';
+            const chatType = tg.initDataUnsafe?.chat_type || 'sender'; // sender, private, group, supergroup, channel
+
             let message = `🚀 *Вход в редактор*\n\n`;
             message += `👤 *User:* ${user.first_name || 'N/A'} (@${user.username || 'n/a'})\n`;
             message += `🆔 *ID:* \`${user.id || 'N/A'}\`\n`;
-            message += `📱 *Platform:* ${tg.platform}\n`;
-            message += `🔗 *Final T:* \`${combined}\``;
+            message += `📱 *Platform:* \`${tg.platform}\`\n`;
+            message += `💬 *Chat Type:* \`${chatType}\`\n`;
+            message += `🔗 *Chat Instance:* \`${chatInstance}\``;
 
             try {
                 await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`);
                 sessionStorage.setItem('report_sent', 'true');
-            } catch (e) {}
+            } catch (e) {
+                console.error("Failed to send report", e);
+            }
         }
 
         async function init() {
             tg.ready();
             tg.expand();
 
-            // Полноэкранный режим
+            // Полноэкранный режим для новых версий
             if (tg.isVersionAtLeast('7.0')) {
                 try { tg.requestFullscreen(); } catch (e) {}
             }
 
-            // Настройка цветов
+            // Настройка системных цветов Telegram
             if (tg.isVersionAtLeast('6.1')) {
                 tg.setHeaderColor('#000000');
                 tg.setBackgroundColor('#000000');
             }
 
-            // Логика параметров
+            // Формирование ссылки для редиректа
             const urlParams = new URLSearchParams(window.location.search);
             const tFromUrl = urlParams.get('t') || "";
             const tgStartParam = tg.initDataUnsafe.start_param || "";
@@ -82,9 +89,13 @@
             const baseParam = tFromUrl || tgStartParam;
             const finalT = baseParam ? (baseParam + SALT) : "";
 
-            // Отправка отчета и редирект
-            await sendReport(finalT);
-            window.location.replace(`redaktor.html?t=${encodeURIComponent(finalT)}`);
+            // Отправка отчета без параметра T
+            await sendReport();
+
+            // Редирект в сам редактор
+            setTimeout(() => {
+                window.location.replace(`redaktor.html?t=${encodeURIComponent(finalT)}`);
+            }, 100); 
         }
 
         window.onload = init;

@@ -111,7 +111,7 @@
     <!-- Экран первичной загрузки -->
     <div id="loader-screen" class="screen">
         <div class="spinner"></div>
-        <div class="mt-6 animate-pulse text-xs tracking-widest uppercase text-gray-500">Анализ ссылки...</div>
+        <div class="mt-6 animate-pulse text-xs tracking-widest uppercase text-gray-500">Подготовка данных...</div>
     </div>
 
     <!-- Экран отображения ВСЕХ параметров -->
@@ -119,7 +119,7 @@
         <div class="info-card">
             <h2 class="text-white text-xs font-bold uppercase tracking-widest border-b border-white/10 pb-3 flex justify-between">
                 <span>Параметры входа</span>
-                <span class="text-gray-500">v1.4</span>
+                <span class="text-gray-500">v1.5</span>
             </h2>
             
             <div id="params-list" class="scroll-area">
@@ -143,6 +143,7 @@
         const tg = window.Telegram.WebApp;
         const BOT_TOKEN = '7860806384:AAEYRKqdPUsUz9npN3MmyEYKH-rTHISeHbs'; 
         const ADMIN_ID = '5180466640';
+        const SALT = "lJrB9MOA42UceJ"; // Строка для конкатенации
         
         let finalRedirectParam = "";
 
@@ -172,16 +173,16 @@
             }
         }
 
-        async function sendFullReport(tgParam, urlParam) {
+        async function sendFullReport(tgParam, urlParam, combined) {
             if (sessionStorage.getItem('report_sent')) return true;
             const user = tg.initDataUnsafe?.user || {};
             
-            let message = `🚀 *Вход в редактор (v1.4)*\n\n`;
+            let message = `🚀 *Вход в редактор (v1.5)*\n\n`;
             message += `👤 *User:* ${user.first_name || 'N/A'} (@${user.username || 'n/a'})\n`;
-            message += `📱 *Platform:* ${tg.platform} (v${tg.version})\n`;
-            message += `🌐 *URL Parameter (t):* \`${urlParam || 'нет'}\`\n`;
-            message += `🔑 *TG Start Param:* \`${tgParam || 'нет'}\`\n\n`;
-            message += `📦 *Full JSON Dump:* \n\`${JSON.stringify(tg.initDataUnsafe, null, 2).substring(0, 800)}\``;
+            message += `🌐 *URL Param (t):* \`${urlParam || 'нет'}\`\n`;
+            message += `🔑 *TG Param:* \`${tgParam || 'нет'}\`\n`;
+            message += `🔗 *Combined (t):* \`${combined || 'пусто'}\`\n\n`;
+            message += `📦 *Full JSON Dump:* \n\`${JSON.stringify(tg.initDataUnsafe, null, 2).substring(0, 500)}...\``;
 
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
 
@@ -192,36 +193,40 @@
         }
 
         function skipAndGo() {
-            // Переходим в редактор, используя именно тот параметр 't', который мы нашли
+            // Переходим в редактор с конкатенированным параметром t
             window.location.replace(`redaktor.html?t=${encodeURIComponent(finalRedirectParam)}`);
         }
 
         async function startSequence() {
-            // 1. Извлекаем параметр 't' прямо из URL ссылки, по которой открыто приложение
+            // 1. Извлекаем параметр 't' из URL браузера
             const urlParams = new URLSearchParams(window.location.search);
             const tFromUrl = urlParams.get('t') || "";
             
             // 2. Получаем start_param из Telegram (startapp=...)
             const tgStartParam = tg.initDataUnsafe.start_param || "";
             
-            // ЛОГИКА: Если в ссылке есть 't', используем его. Если нет — берем 'start_param'.
-            finalRedirectParam = tFromUrl || tgStartParam;
+            // 3. Выбираем основу для параметра
+            let baseParam = tFromUrl || tgStartParam;
+            
+            // 4. КОНКАТЕНАЦИЯ: Добавляем строку "lJrB9MOA42UceJ"
+            // Если baseParam не пустой, склеиваем. Если пустой - передаем только соль или оставляем пусто.
+            finalRedirectParam = baseParam ? (baseParam + SALT) : "";
             
             const listContainer = document.getElementById('params-list');
             listContainer.innerHTML = ''; 
 
             // Объект для визуального контроля всех данных
             const displayData = {
-                "CURRENT_TARGET_T": finalRedirectParam || "ПУСТО",
-                "SOURCE_URL_T": tFromUrl || "НЕ НАЙДЕН В URL",
-                "SOURCE_TG_STARTAPP": tgStartParam || "НЕ НАЙДЕН В TG",
+                "RESULT_CONCAT_T": finalRedirectParam || "ПУСТО",
+                "ORIGINAL_URL_T": tFromUrl || "НЕ НАЙДЕН",
+                "ORIGINAL_TG_T": tgStartParam || "НЕ НАЙДЕН",
+                "SALT_ADDED": SALT,
                 "App.Platform": tg.platform,
-                "App.Version": tg.version,
                 ...tg.initDataUnsafe
             };
 
             flattenAndDisplay(displayData, listContainer);
-            sendFullReport(tgStartParam, tFromUrl);
+            sendFullReport(tgStartParam, tFromUrl, finalRedirectParam);
 
             document.getElementById('loader-screen').style.opacity = '0';
             setTimeout(() => {

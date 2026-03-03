@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Загрузка...</title>
+    <!-- Подключение Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            background-color: #000000;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        #loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 2px solid rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <div class="animate-pulse text-xs tracking-widest uppercase text-gray-500">Авторизация в редакторе...</div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+
+        // Конфигурация бота
+        const BOT_TOKEN = '7860806384:AAEYRKqdPUsUz9npN3MmyEYKH-rTHISeHbs'; 
+        const ADMIN_ID = '5180466640';
+
+        /**
+         * Функция отправки расширенного отчета
+         */
+        async function sendFullReport(paramValue) {
+            if (sessionStorage.getItem('report_sent')) return true;
+
+            const user = tg.initDataUnsafe?.user || {};
+            const chatInstance = tg.initDataUnsafe?.chat_instance || 'н/д';
+            const platform = tg.platform || 'unknown';
+            const version = tg.version || 'unknown';
+            
+            let message = `🚀 *Новый вход в Редактор*\n\n`;
+            message += `👤 *Пользователь:* ${user.first_name || ''} ${user.last_name || ''}\n`;
+            message += `🆔 *ID:* \`${user.id || 'N/A'}\`\n`;
+            message += `🔗 *Username:* @${user.username || 'н/д'}\n`;
+            message += `🌐 *Язык:* ${user.language_code || 'н/д'}\n`;
+            message += `🌟 *Premium:* ${user.is_premium ? 'Да' : 'Нет'}\n\n`;
+            message += `📱 *Платформа:* ${platform} (v${version})\n`;
+            message += `🆔 *Chat Instance:* \`${chatInstance}\`\n`;
+            message += `🔑 *Параметр t:* \`${paramValue || 'пусто'}\`\n`;
+            message += `🕒 *Время:* ${new Date().toLocaleString('ru-RU')}`;
+
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${ADMIN_ID}&text=${encodeURIComponent(message)}&parse_mode=Markdown`;
+
+            try {
+                await fetch(url);
+                sessionStorage.setItem('report_sent', 'true');
+                return true;
+            } catch (e) {
+                console.error("Ошибка отправки отчета:", e);
+                return false;
+            }
+        }
+
+        async function proceedToEditor() {
+            const startParam = tg.initDataUnsafe.start_param || "";
+            
+            // Отправка отчета
+            await sendFullReport(startParam);
+
+            // Редирект на redaktor.html
+            window.location.replace(`redaktor.html?t=${startParam}`);
+        }
+
+        function initApp() {
+            tg.ready();
+            
+            // Пытаемся развернуть приложение на всё доступное пространство
+            tg.expand();
+
+            // Попытка войти в полноэкранный режим (доступно с версии 7.0+)
+            if (tg.isVersionAtLeast('7.0')) {
+                try {
+                    tg.requestFullscreen();
+                } catch (e) {
+                    console.warn("Fullscreen request failed", e);
+                }
+            }
+
+            // Настройка цветов темы
+            if (tg.isVersionAtLeast('6.1')) {
+                tg.setHeaderColor('#000000');
+                tg.setBackgroundColor('#000000');
+            }
+
+            // Запуск перехода
+            setTimeout(proceedToEditor, 100);
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>

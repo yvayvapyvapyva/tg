@@ -13,7 +13,7 @@
         #map { position: absolute; inset: 0; z-index: 1; }
         [class*="-copyrights-pane"], [class*="-controls-pane"] { display: none !important; }
         
-        /* Скрытый экран загрузки */
+        /* Авторизация скрыта */
         #authLoader { position: fixed; inset: 0; z-index: 9999; background: #fff; display: flex; align-items: center; justify-content: center; transition: 0.5s; }
         .spinner { width: 40px; height: 40px; border: 4px solid var(--bg-sec); border-top-color: var(--btn); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -28,6 +28,9 @@
         .btn-add-main { background: var(--btn); color: #fff; padding: 18px 32px; border-radius: 35px; font-weight: 700; border: none; box-shadow: 0 10px 30px rgba(0,122,255,0.3); cursor: pointer; font-size: 16px; transition: 0.3s; width: max-content; white-space: nowrap; }
         
         .modal { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,0.3); display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(10px); }
+        /* Окно создания маршрута должно быть поверх настроек */
+        #createRouteModal { z-index: 4000; }
+        
         .modal-content { background: var(--bg-sec); width: 100%; max-width: 500px; border-radius: 30px 30px 0 0; display: flex; flex-direction: column; max-height: 90vh; animation: slideUp 0.4s cubic-bezier(0.2, 1, 0.3, 1); position: relative; padding-bottom: env(safe-area-inset-bottom); }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         
@@ -38,7 +41,6 @@
         .settings-group { background: #fff; border-radius: 20px; margin-bottom: 20px; border: 1px solid var(--border); overflow: hidden; }
         .settings-item { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); transition: 0.2s; cursor: pointer; }
         
-        /* Стили для селектора и инпутов */
         .route-select { width: 100%; background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 14px; font-size: 16px; font-weight: 500; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; background-size: 16px; margin-bottom: 20px; }
         
         input, textarea { width: 100%; padding: 14px; border: none; font-size: 16px; outline: none; background: transparent; color: var(--text); font-family: inherit; box-sizing: border-box; }
@@ -69,27 +71,27 @@
 
 <div class="top-controls" id="uiControls" style="display:none">
     <button id="listPointsBtn" class="btn-top" onclick="openPointsOrderModal()" style="visibility:hidden">
-        <span>📋</span> <span id="routeLabelText">Маршрут</span>
+        <span>📋</span> <span id="routeLabelText">Список точек</span>
     </button>
     <button class="btn-top btn-settings" onclick="openSettingsModal()"><span>⚙️</span></button>
 </div>
 
 <div class="bottom-center-controls" id="bottomControls">
     <button id="addMarkerBtn" class="btn-add-main" onclick="handleAddBtnClick()" style="visibility:hidden">
-        <span id="addText">Добавить новую точку</span>
+        <span id="addText">Поставить метку</span>
     </button>
 </div>
 
 <div id="dropdownOverlay" class="dropdown-overlay" onclick="closeD()" style="position:fixed; inset:0; z-index:5999; display:none; background:rgba(0,0,0,0.1);"></div>
-<div id="listColorDropdown" class="color-dropdown"></div>
+<div id="listColorDropdown" class="color-dropdown" style="position:fixed; bottom:0; left:0; right:0; background:#fff; z-index:6000; display:none; flex-direction:column; border-radius:30px 30px 0 0; padding:10px 0;"></div>
 
-<!-- Модальное окно создания маршрута -->
+<!-- Создание маршрута (поверх настроек) -->
 <div id="createRouteModal" class="modal" onclick="if(event.target===this) toggleM('createRouteModal')">
     <div class="modal-content">
         <div class="modal-header"><h3>Новый маршрут</h3><button class="close-circle" onclick="toggleM('createRouteModal')">✕</button></div>
         <div class="editor-section">
             <div class="input-wrapper">
-                <input type="text" id="newRouteName" placeholder="Название маршрута" oninput="this.value = this.value.replace(/[^a-zA-Z0-9А-Яа-я_-]/g, '')">
+                <input type="text" id="newRouteName" placeholder="Название (только a-z, _)" oninput="this.value = this.value.replace(/[^a-zA-Z_]/g, '')">
             </div>
             <button id="btnCreateFile" class="btn-action" onclick="handleCreateNew()">Создать маршрут</button>
         </div>
@@ -103,7 +105,7 @@
         <div class="editor-section">
             <span class="section-title">Ваши маршруты</span>
             <select class="route-select" id="routeSelector" onchange="loadRoute(this.value)">
-                <option value="" disabled selected>Выберите маршрут...</option>
+                <option value="" disabled selected>Выберите из списка...</option>
             </select>
             
             <button class="btn-action" style="margin-bottom: 20px;" onclick="toggleM('createRouteModal')">
@@ -111,10 +113,10 @@
             </button>
 
             <div id="fileActions" style="display:none;">
-                <span class="section-title" id="activeFileNameDisplay">Управление файлом</span>
+                <span class="section-title" id="activeFileNameDisplay">Активный маршрут</span>
                 <div class="settings-group">
-                    <div class="settings-item" onclick="shareActiveRoute()"><span style="font-weight: 500;">🔗 Скопировать ссылку</span><span style="color:var(--btn); font-size: 20px;">›</span></div>
-                    <div class="settings-item" onclick="deleteActiveRoute()"><span style="font-weight: 500; color: var(--danger);">🗑️ Удалить маршрут</span></div>
+                    <div class="settings-item" onclick="shareActiveRoute()"><span style="font-weight: 500;">🔗 Поделиться маршрутом</span><span style="color:var(--btn); font-size: 20px;">›</span></div>
+                    <div class="settings-item" onclick="deleteActiveRoute()"><span style="font-weight: 500; color: var(--danger);">🗑️ Удалить этот маршрут</span></div>
                 </div>
             </div>
         </div>
@@ -124,9 +126,9 @@
 <!-- Список точек -->
 <div id="pointsOrderModal" class="modal" onclick="if(event.target===this) toggleM('pointsOrderModal')">
     <div class="modal-content">
-        <div class="modal-header"><h3 id="orderModalTitle">Маршрут</h3><button class="close-circle" onclick="toggleM('pointsOrderModal')">✕</button></div>
+        <div class="modal-header"><h3 id="orderModalTitle">Список точек</h3><button class="close-circle" onclick="toggleM('pointsOrderModal')">✕</button></div>
         <div class="editor-section" id="pointsSortList"></div>
-        <div style="padding: 20px;"><button id="saveInListBtn" class="btn-action" style="background: var(--success);" onclick="handleModalSave()"><span id="saveBtnText">Сохранить в облаке</span></button></div>
+        <div style="padding: 20px;"><button id="saveInListBtn" class="btn-action" style="background: var(--success);" onclick="handleModalSave()"><span id="saveBtnText">Сохранить в облако</span></button></div>
     </div>
 </div>
 
@@ -166,11 +168,8 @@ ymaps.ready(() => {
     const urlToken = urlParams.get('t');
     if (urlToken) localStorage.setItem('gh_t_optimized', urlToken);
     
-    if(localStorage.getItem('gh_t_optimized')) { 
-        handleAuthSilent(); 
-    } else {
-        $('authLoader').innerHTML = "<span>Токен не найден</span>";
-    }
+    if(localStorage.getItem('gh_t_optimized')) { handleAuthSilent(); } 
+    else { $('authLoader').innerHTML = "<span>Токен не найден</span>"; }
 });
 
 const handleAuthSilent = async () => {
@@ -180,9 +179,7 @@ const handleAuthSilent = async () => {
         $('uiControls').style.display = 'flex';
         $('bottomControls').style.display = 'flex';
         refreshFileList();
-    } else {
-        showToast("Ошибка авторизации");
-    }
+    } else { showToast("Ошибка авторизации"); }
 };
 
 const ensureUserGist = async () => { 
@@ -202,7 +199,7 @@ const refreshFileList = async () => {
     const g = await api(`https://api.github.com/gists/${userGistId}?t=${Date.now()}`); 
     if(!g) return;
     const files = Object.keys(g.files).filter(fn => fn.endsWith('.json'));
-    sel.innerHTML = '<option value="" disabled ' + (curFile ? '' : 'selected') + '>Выберите маршрут...</option>';
+    sel.innerHTML = '<option value="" disabled ' + (curFile ? '' : 'selected') + '>Выберите из списка...</option>';
     files.forEach(fn => {
         const opt = document.createElement('option');
         opt.value = fn;
@@ -221,16 +218,14 @@ const updateVisibility = () => {
         const n = curFile.replace('.json',''); 
         $('fileActions').style.display = 'block'; 
         $('activeFileNameDisplay').textContent = `Маршрут: ${n}`; 
-        $('routeLabelText').textContent = n; 
     } else { 
         $('fileActions').style.display = 'none'; 
-        $('routeLabelText').textContent = 'Маршрут'; 
     }
 };
 
 const handleCreateNew = async () => {
     const n = $('newRouteName').value.trim();
-    if(!n) return;
+    if(!n) { showToast("Введите название"); return; }
     const fn = n + '.json';
     const btn = $('btnCreateFile');
     btn.classList.add('loading');
@@ -366,7 +361,7 @@ const startDrawingForPoint = p => {
 
 const stopDrawingMode = () => { 
     if (cur) { cur.pm.options.set('draggable', false); cur.line.editor.stopEditing(); } 
-    isDrawing = false; $('addText').textContent = "Добавить новую точку"; 
+    isDrawing = false; $('addText').textContent = "Поставить метку"; 
     $('addMarkerBtn').classList.remove('drawing'); cur = null; 
 };
 
@@ -374,7 +369,7 @@ const handleAddBtnClick = () => { if(isDrawing) stopDrawingMode(); else if(isAdd
 
 const stopAdd = () => { 
     isAdd = false; tempNewPointData = null; 
-    $('addText').textContent = "Добавить новую точку"; 
+    $('addText').textContent = "Поставить метку"; 
     $('addMarkerBtn').classList.remove('active'); 
     map.setCursor('grab'); 
 };
@@ -414,8 +409,8 @@ function delPoint(p) { points = points.filter(x => x !== p); map.geoObjects.remo
 function startEditPath(p) { cur = p; isDrawing = true; $('addText').textContent = "Рисуйте путь..."; $('addMarkerBtn').classList.add('drawing'); p.pm.options.set('draggable', true); p.line.editor.startEditing(); }
 
 function openPointsOrderModal() {
-    modalMode = 'list'; const list = $('pointsSortList'); list.innerHTML = ''; $('orderModalTitle').textContent = curFile ? curFile.replace('.json', '') : "Маршрут"; 
-    if (!points.length) list.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e93;font-weight:500;">Маршрут пуст</div>'; else points.forEach(p => list.appendChild(createPointCard(p))); toggleM('pointsOrderModal');
+    modalMode = 'list'; const list = $('pointsSortList'); list.innerHTML = ''; $('orderModalTitle').textContent = "Список точек"; 
+    if (!points.length) list.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e93;font-weight:500;">Список пуст</div>'; else points.forEach(p => list.appendChild(createPointCard(p))); toggleM('pointsOrderModal');
 }
 
 function openEditPointModal(p) { modalMode = 'edit'; $('pointsSortList').innerHTML = ''; $('orderModalTitle').textContent = `Точка #${p.id}`; $('saveBtnText').textContent = "Готово"; $('pointsSortList').appendChild(createPointCard(p, true)); toggleM('pointsOrderModal'); }

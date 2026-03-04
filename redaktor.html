@@ -13,22 +13,18 @@
         #map { position: absolute; inset: 0; z-index: 1; }
         [class*="-copyrights-pane"], [class*="-controls-pane"] { display: none !important; }
         
-        /* Авторизация скрыта */
         #authLoader { position: fixed; inset: 0; z-index: 9999; background: #fff; display: flex; align-items: center; justify-content: center; transition: 0.5s; }
         .spinner { width: 40px; height: 40px; border: 4px solid var(--bg-sec); border-top-color: var(--btn); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .top-controls { position: absolute; top: calc(env(safe-area-inset-top) + 45px); left: 20px; right: 20px; z-index: 2000; display: flex; justify-content: space-between; pointer-events: none; }
         .btn-top { background: rgba(255,255,255,0.9); color: var(--text); padding: 12px 18px; border-radius: 25px; font-weight: 600; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.1); cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 14px; backdrop-filter: blur(20px); pointer-events: auto; transition: 0.2s; }
-        
-        /* Увеличенная кнопка настроек */
         .btn-settings { width: 54px; height: 54px; padding: 0; justify-content: center; border-radius: 50%; font-size: 24px; }
         
         .bottom-center-controls { position: absolute; bottom: calc(30px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 2000; display: none; flex-direction: column; align-items: center; width: auto; max-width: 90%; }
         .btn-add-main { background: var(--btn); color: #fff; padding: 18px 32px; border-radius: 35px; font-weight: 700; border: none; box-shadow: 0 10px 30px rgba(0,122,255,0.3); cursor: pointer; font-size: 16px; transition: 0.3s; width: max-content; white-space: nowrap; }
         
         .modal { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,0.3); display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(10px); }
-        /* Окно создания маршрута должно быть поверх настроек */
         #createRouteModal { z-index: 4000; }
         
         .modal-content { background: var(--bg-sec); width: 100%; max-width: 500px; border-radius: 30px 30px 0 0; display: flex; flex-direction: column; max-height: 90vh; animation: slideUp 0.4s cubic-bezier(0.2, 1, 0.3, 1); position: relative; padding-bottom: env(safe-area-inset-bottom); }
@@ -58,6 +54,11 @@
         .point-number-text { font-size: 18px; font-weight: 800; color: var(--btn); min-width: 24px; text-align: center; }
         .item-main-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
         .color-indicator-btn { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); flex-shrink: 0; }
+        
+        /* Измененные размеры полей ввода */
+        .cmd-select { flex: 1; padding: 12px 8px; border-radius: 10px; border: none; background: var(--bg-sec); font-size: 15px; font-weight: 500; height: 48px; }
+        .comm-input { background: #fafafa; border: 1px solid var(--border); border-radius: 12px; margin-top: 8px; padding: 8px 12px; font-size: 13px; resize: none; width: 100%; display: block; box-sizing: border-box; height: 44px; }
+        
         .btn-item-action { flex: 1; padding: 12px; border-radius: 12px; border: none; background: var(--bg-sec); font-size: 14px; font-weight: 600; cursor: pointer; }
         .item-actions { display: flex; gap: 8px; margin-top: 12px; }
     </style>
@@ -85,13 +86,13 @@
 <div id="dropdownOverlay" class="dropdown-overlay" onclick="closeD()" style="position:fixed; inset:0; z-index:5999; display:none; background:rgba(0,0,0,0.1);"></div>
 <div id="listColorDropdown" class="color-dropdown" style="position:fixed; bottom:0; left:0; right:0; background:#fff; z-index:6000; display:none; flex-direction:column; border-radius:30px 30px 0 0; padding:10px 0;"></div>
 
-<!-- Создание маршрута (поверх настроек) -->
+<!-- Создание маршрута -->
 <div id="createRouteModal" class="modal" onclick="if(event.target===this) toggleM('createRouteModal')">
     <div class="modal-content">
         <div class="modal-header"><h3>Новый маршрут</h3><button class="close-circle" onclick="toggleM('createRouteModal')">✕</button></div>
         <div class="editor-section">
             <div class="input-wrapper">
-                <input type="text" id="newRouteName" placeholder="Название (только a-z, _)" oninput="this.value = this.value.replace(/[^a-zA-Z_]/g, '')">
+                <input type="text" id="newRouteName" placeholder="Название (латиница, цифры, _)" oninput="this.value = this.value.replace(/[^a-zA-Z0-9_]/g, '')">
             </div>
             <button id="btnCreateFile" class="btn-action" onclick="handleCreateNew()">Создать маршрут</button>
         </div>
@@ -397,12 +398,26 @@ function recalculateIds() {
 
 function createPointCard(p, single = false) {
     const item = document.createElement('div'); item.className = 'sortable-point-item'; item.dataset.id = p.id;
-    item.innerHTML = `${!single ? '<div style="position:absolute; top:12px; right:12px; color:#d1d1d6; cursor:grab;" class="sort-handle">☰</div>' : ''}<div class="item-main-row"><div class="point-number-text">${p.id || '?'}</div><div class="color-indicator-btn" style="background:${COLORS[p.color].hex}"></div><select class="cmd-select" style="flex:1; padding:8px; border-radius:10px; border:none; background:var(--bg-sec);"></select></div><textarea class="comm-input" rows="2" placeholder="Комментарий" style="background:#fafafa; border:1px solid var(--border); border-radius:12px; margin-top:8px; padding:12px; font-size:14px; resize:none; width:100%; display:block; box-sizing:border-box;">${p.comm || ''}</textarea><div class="item-actions"><button class="btn-item-action btn-path">🖋️ Путь</button><button class="btn-item-action btn-del" style="color:var(--danger)">🗑️ Удал.</button></div>`;
+    item.innerHTML = `
+        ${!single ? '<div style="position:absolute; top:12px; right:12px; color:#d1d1d6; cursor:grab;" class="sort-handle">☰</div>' : ''}
+        <div class="item-main-row">
+            <div class="point-number-text">${p.id || '?'}</div>
+            <div class="color-indicator-btn" style="background:${COLORS[p.color].hex}"></div>
+            <select class="cmd-select"></select>
+        </div>
+        <textarea class="comm-input" rows="1" placeholder="Комментарий">${p.comm || ''}</textarea>
+        <div class="item-actions">
+            <button class="btn-item-action btn-path">🖋️ Изменить путь</button>
+            <button class="btn-item-action btn-del" style="color:var(--danger)">🗑️ Удал.</button>
+        </div>`;
+    
     const sel = item.querySelector('.cmd-select'); updateCommandOptions(sel, p.color, p.cmd);
     item.querySelector('.color-indicator-btn').onclick = e => { e.stopPropagation(); activeListPoint = { point: p, card: item }; toggleD('listColorDropdown'); };
-    sel.onchange = () => p.cmd = sel.value; item.querySelector('.comm-input').oninput = e => p.comm = e.target.value;
+    sel.onchange = () => p.cmd = sel.value; 
+    item.querySelector('.comm-input').oninput = e => p.comm = e.target.value;
     item.querySelector('.btn-del').onclick = () => { if(confirm("Удалить точку?")) { delPoint(p); if(single) toggleM('pointsOrderModal'); else openPointsOrderModal(); } };
-    item.querySelector('.btn-path').onclick = () => { toggleM('pointsOrderModal'); startEditPath(p); }; return item;
+    item.querySelector('.btn-path').onclick = () => { toggleM('pointsOrderModal'); startEditPath(p); }; 
+    return item;
 }
 
 function delPoint(p) { points = points.filter(x => x !== p); map.geoObjects.remove(p.pm); map.geoObjects.remove(p.line); if(p.pmEnd) map.geoObjects.remove(p.pmEnd); recalculateIds(); }
@@ -410,16 +425,23 @@ function startEditPath(p) { cur = p; isDrawing = true; $('addText').textContent 
 
 function openPointsOrderModal() {
     modalMode = 'list'; const list = $('pointsSortList'); list.innerHTML = ''; $('orderModalTitle').textContent = "Список точек"; 
+    $('saveBtnText').textContent = "Сохранить в облако";
     if (!points.length) list.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e93;font-weight:500;">Список пуст</div>'; else points.forEach(p => list.appendChild(createPointCard(p))); toggleM('pointsOrderModal');
 }
 
-function openEditPointModal(p) { modalMode = 'edit'; $('pointsSortList').innerHTML = ''; $('orderModalTitle').textContent = `Точка #${p.id}`; $('saveBtnText').textContent = "Готово"; $('pointsSortList').appendChild(createPointCard(p, true)); toggleM('pointsOrderModal'); }
-function openCreatePointModal() { modalMode = 'create'; $('pointsSortList').innerHTML = ''; $('orderModalTitle').textContent = "Новая точка"; $('saveBtnText').textContent = "На карту"; tempNewPointData = { id: points.length + 1, color: 'Gold', cmd: COMMAND_SETS.Gold[0], comm: '' }; $('pointsSortList').appendChild(createPointCard(tempNewPointData, true)); toggleM('pointsOrderModal'); }
+function openEditPointModal(p) { modalMode = 'edit'; $('pointsSortList').innerHTML = ''; $('orderModalTitle').textContent = `Точка #${p.id}`; $('saveBtnText').textContent = "Сохранить в облако"; $('pointsSortList').appendChild(createPointCard(p, true)); toggleM('pointsOrderModal'); }
+function openCreatePointModal() { modalMode = 'create'; $('pointsSortList').innerHTML = ''; $('orderModalTitle').textContent = "Новая точка"; $('saveBtnText').textContent = "Сохранить в облако"; tempNewPointData = { id: points.length + 1, color: 'Gold', cmd: COMMAND_SETS.Gold[0], comm: '' }; $('pointsSortList').appendChild(createPointCard(tempNewPointData, true)); toggleM('pointsOrderModal'); }
 
 function handleModalSave() {
-    if (modalMode === 'list') saveGist();
-    else if (modalMode === 'edit') toggleM('pointsOrderModal');
-    else if (modalMode === 'create') { toggleM('pointsOrderModal'); isAdd = true; $('addMarkerBtn').classList.add('active'); $('addText').textContent = "Выберите место"; map.setCursor('crosshair'); }
+    if (modalMode === 'list' || modalMode === 'edit') saveGist();
+    else if (modalMode === 'create') { 
+        // При создании новой точки мы сразу сохраняем состояние, чтобы не потерять данные, и переходим в режим выбора на карте
+        isAdd = true; 
+        $('addMarkerBtn').classList.add('active'); 
+        $('addText').textContent = "Выберите место"; 
+        map.setCursor('crosshair');
+        toggleM('pointsOrderModal');
+    }
 }
 
 function reorderPointsFromList() { points = Array.from($('pointsSortList').children).map(c => points.find(p => p.id === parseInt(c.dataset.id))).filter(p => !!p); recalculateIds(); }

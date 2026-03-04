@@ -14,8 +14,10 @@
         [class*="-copyrights-pane"], [class*="-controls-pane"] { display: none !important; }
         #welcomeScreen { position: fixed; inset: 0; z-index: 5000; background: var(--bg-sec); display: flex; align-items: center; justify-content: center; padding: 20px; }
         .welcome-card { background: #fff; width: 100%; max-width: 400px; padding: 32px; border-radius: 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); text-align: center; }
-        .top-controls { position: absolute; top: calc(env(safe-area-inset-top) + 20px); left: 15px; right: 15px; z-index: 2000; display: flex; justify-content: space-between; pointer-events: none; gap: 10px; }
-        /* Увеличенные кнопки */
+        
+        /* Смещение кнопок ниже (60px от верха вместо 20px) */
+        .top-controls { position: absolute; top: calc(env(safe-area-inset-top) + 60px); left: 15px; right: 15px; z-index: 2000; display: flex; justify-content: space-between; pointer-events: none; gap: 10px; }
+        
         .btn-top { background: rgba(255,255,255,0.9); color: var(--text); padding: 14px 22px; border-radius: 30px; font-weight: 700; border: 1px solid var(--border); box-shadow: 0 8px 25px rgba(0,0,0,0.1); cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 16px; backdrop-filter: blur(20px); pointer-events: auto; transition: 0.2s; height: 54px; box-sizing: border-box; }
         .btn-top span:first-child { font-size: 20px; }
         .btn-top:active { transform: scale(0.96); background: #fff; }

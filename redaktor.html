@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8">
-    <title>Route Editor Pro | Mobile Optimized</title>
+    <title>Route Editor Pro</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://api-maps.yandex.ru/2.1/?apikey=YANDEX_API_KEY&lang=ru_RU&suppressMapOpenBlock=true"></script>
@@ -11,446 +11,558 @@
         :root { 
             --btn: #007AFF; 
             --text: #1d1d1f; 
+            --text-sec: #86868b;
             --danger: #FF3B30; 
             --success: #34C759; 
-            --border: rgba(0,0,0,0.08); 
+            --border: rgba(0,0,0,0.06); 
             --bg-sec: #f5f5f7; 
-            --tab-bar-h: 70px;
+            --card-bg: rgba(255,255,255,0.92);
         }
+        
         body, html { 
             margin: 0; padding: 0; height: 100%; width: 100%; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            overflow: hidden; background: #fff; -webkit-tap-highlight-color: transparent; color: var(--text); 
+            overflow: hidden; background: #000; color: var(--text);
+            -webkit-tap-highlight-color: transparent;
         }
-        #map { position: absolute; inset: 0; z-index: 1; bottom: var(--tab-bar-h); }
+
+        #map { position: absolute; inset: 0; z-index: 1; background: #222; }
         [class*="-copyrights-pane"], [class*="-controls-pane"] { display: none !important; }
-        
-        /* Лоадер */
-        #authLoader { position: fixed; inset: 0; z-index: 9999; background: #fff; display: flex; align-items: center; justify-content: center; }
-        .spinner { width: 40px; height: 40px; border: 4px solid var(--bg-sec); border-top-color: var(--btn); border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Нижний Таб-бар */
-        .tab-bar {
-            position: fixed; bottom: 0; left: 0; right: 0; height: calc(var(--tab-bar-h) + env(safe-area-inset-bottom));
-            background: rgba(255,255,255,0.9); backdrop-filter: blur(20px); border-top: 1px solid var(--border);
-            z-index: 2000; display: flex; justify-content: space-around; padding-bottom: env(safe-area-inset-bottom);
+        /* Welcome Screen */
+        #welcomeScreen { 
+            position: fixed; inset: 0; z-index: 9999; background: var(--bg-sec); 
+            display: flex; align-items: center; justify-content: center; padding: 20px; 
         }
-        .tab-item {
-            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: #8e8e93; font-size: 10px; font-weight: 500; cursor: pointer; transition: 0.2s;
+        .welcome-card { 
+            background: #fff; width: 100%; max-width: 320px; padding: 40px 24px; 
+            border-radius: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); text-align: center; 
         }
-        .tab-item.active { color: var(--btn); }
-        .tab-icon { font-size: 24px; margin-bottom: 4px; }
 
-        /* Кнопка добавления по центру */
-        .main-action-btn {
-            position: absolute; bottom: calc(var(--tab-bar-h) + 20px + env(safe-area-inset-bottom));
-            left: 50%; transform: translateX(-50%); z-index: 1500;
-            background: var(--btn); color: #fff; padding: 14px 24px; border-radius: 30px;
-            font-weight: 700; border: none; box-shadow: 0 8px 25px rgba(0,122,255,0.4);
-            font-size: 15px; display: flex; align-items: center; gap: 8px; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        /* Controls */
+        .top-nav {
+            position: absolute; top: calc(env(safe-area-inset-top) + 15px);
+            left: 15px; right: 15px; z-index: 2000;
+            display: flex; gap: 10px; pointer-events: none;
         }
-        .main-action-btn.active { background: var(--danger); transform: translateX(-50%) scale(0.95); }
-        .main-action-btn.drawing { background: var(--success); }
+        .btn-glass {
+            background: var(--card-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border); border-radius: 20px;
+            padding: 10px 18px; font-weight: 600; font-size: 14px;
+            display: flex; align-items: center; gap: 8px; cursor: pointer;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08); pointer-events: auto;
+            transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+        }
+        .btn-glass:active { transform: scale(0.96); }
 
-        /* Модальные окна в стиле Bottom Sheet */
-        .modal { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,0.4); display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(4px); }
+        .bottom-nav {
+            position: absolute; bottom: calc(30px + env(safe-area-inset-bottom));
+            left: 50%; transform: translateX(-50%); z-index: 2000;
+            display: none; width: 100%; padding: 0 20px; box-sizing: border-box; justify-content: center;
+        }
+        .btn-main {
+            background: var(--btn); color: #fff; border: none;
+            padding: 16px 32px; border-radius: 30px; font-weight: 700; font-size: 16px;
+            box-shadow: 0 12px 30px rgba(0,122,255,0.4); cursor: pointer;
+            transition: 0.3s cubic-bezier(0.2, 1, 0.3, 1); white-space: nowrap;
+        }
+        .btn-main.active { background: var(--danger); box-shadow: 0 12px 30px rgba(255,59,48,0.4); }
+        .btn-main.drawing { background: var(--success); box-shadow: 0 12px 30px rgba(52,199,89,0.4); }
+
+        /* Modals */
+        .modal { 
+            position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,0.4); 
+            display: none; align-items: flex-end; justify-content: center; 
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        }
         .modal-content { 
-            background: var(--bg-sec); width: 100%; max-width: 600px; border-radius: 24px 24px 0 0; 
-            display: flex; flex-direction: column; max-height: 85vh; 
-            animation: slideUp 0.35s cubic-bezier(0.1, 0.7, 0.1, 1); 
-            padding-bottom: env(safe-area-inset-bottom); overflow: hidden;
+            background: var(--bg-sec); width: 100%; max-width: 500px; 
+            border-radius: 32px 32px 0 0; display: flex; flex-direction: column; 
+            max-height: 92vh; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+            padding-bottom: env(safe-area-inset-bottom);
         }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        
-        .modal-header { 
-            padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; 
-            background: #fff; border-bottom: 1px solid var(--border);
+
+        .modal-header { padding: 24px 24px 16px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+        .close-btn { 
+            width: 36px; height: 36px; border-radius: 50%; background: #e5e5ea; 
+            border: none; color: #3a3a3c; cursor: pointer; font-size: 18px;
+            display: flex; align-items: center; justify-content: center;
         }
-        .modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; }
-        .close-circle { width: 30px; height: 30px; border-radius: 50%; background: #f0f0f2; border: none; color: #8e8e93; font-size: 14px; display: flex; align-items: center; justify-content: center; }
-        
-        .editor-section { padding: 16px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
 
-        /* Поля ввода */
-        .input-group { background: #fff; border-radius: 14px; border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden; }
-        .input-group input, .input-group select { border: none; width: 100%; padding: 12px 16px; font-size: 16px; outline: none; box-sizing: border-box; }
+        .scroll-area { padding: 0 16px 20px; overflow-y: auto; flex-grow: 1; }
 
-        /* Элементы списка */
-        .point-card { 
-            background: #fff; border-radius: 16px; margin-bottom: 12px; border: 1px solid var(--border); 
-            padding: 12px; display: flex; flex-direction: column; gap: 10px; position: relative;
+        /* List Styling */
+        .card { 
+            background: #fff; border-radius: 24px; padding: 16px; margin-bottom: 12px; 
+            border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            position: relative;
         }
-        .card-row { display: flex; align-items: center; gap: 12px; }
-        .point-badge { width: 28px; height: 28px; background: var(--bg-sec); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: var(--btn); }
-        .color-dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--border); }
+        .sort-handle { position: absolute; top: 16px; right: 16px; color: #c7c7cc; font-size: 20px; padding: 4px; cursor: grab; }
         
-        /* Кнопки действий */
-        .btn-primary { background: var(--btn); color: #fff; border: none; border-radius: 12px; padding: 14px; font-weight: 600; font-size: 15px; width: 100%; }
-        .btn-outline { background: #fff; color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 10px; font-size: 14px; flex: 1; font-weight: 500; }
-        .btn-danger-text { color: var(--danger); font-weight: 600; text-align: center; padding: 12px; font-size: 14px; }
+        .card-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding-right: 30px; }
+        .badge { 
+            width: 32px; height: 32px; background: var(--bg-sec); border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; color: var(--btn); font-size: 15px;
+        }
+        .color-dot { 
+            width: 38px; height: 38px; border-radius: 50%; cursor: pointer; 
+            border: 3px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
 
+        select, textarea, input { 
+            font-family: inherit; font-size: 16px; border: none; background: #f2f2f7; 
+            border-radius: 14px; padding: 12px; color: var(--text); width: 100%;
+            box-sizing: border-box; outline: none;
+        }
+        textarea { resize: none; margin-top: 8px; font-size: 14px; background: #fff; border: 1px solid var(--border); }
+        
+        .card-actions { display: flex; gap: 8px; margin-top: 14px; }
+        .btn-sub { 
+            flex: 1; padding: 12px; border-radius: 12px; border: none; 
+            background: #f2f2f7; font-weight: 600; font-size: 13px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+
+        /* Color Picker */
+        .color-grid {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #fff; border-radius: 32px; padding: 16px; width: 85%; max-width: 360px;
+            display: none; flex-direction: column; gap: 8px; z-index: 6000; box-shadow: 0 30px 80px rgba(0,0,0,0.3);
+        }
+        .color-option {
+            display: flex; align-items: center; gap: 16px; padding: 12px; border-radius: 18px; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .color-option:active { background: var(--bg-sec); }
+        .swatch { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
+
+        /* Toast */
         #toast { 
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); 
-            background: rgba(0,0,0,0.8); color: #fff; padding: 8px 16px; border-radius: 20px; 
-            font-size: 14px; z-index: 10000; transition: 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28); 
+            position: fixed; top: calc(env(safe-area-inset-top) + 20px); left: 50%; 
+            transform: translateX(-50%) translateY(-100px); background: rgba(0,0,0,0.85); 
+            color: #fff; padding: 12px 24px; border-radius: 50px; font-size: 14px; font-weight: 600;
+            z-index: 9999; transition: 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28); 
+            opacity: 0; backdrop-filter: blur(10px);
         }
-        #toast.show { transform: translateX(-50%) translateY(0); }
+        #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
-        .dropdown-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.2); z-index: 4000; display: none; }
-        .bottom-sheet-menu { 
-            position: fixed; bottom: 0; left: 0; right: 0; background: #fff; 
-            border-radius: 24px 24px 0 0; z-index: 4001; display: none; flex-direction: column; 
-            padding: 20px; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); 
+        .gist-item { 
+            padding: 16px; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border); cursor: pointer; font-weight: 500;
+        }
+        .gist-item.active { color: var(--btn); background: #f0f7ff; }
+        .gist-item:last-child { border-bottom: none; }
+        
+        .section-label { font-size: 11px; font-weight: 700; color: var(--text-sec); text-transform: uppercase; margin: 20px 0 8px 8px; letter-spacing: 1px; }
+
+        .btn-save-fixed {
+            padding: 20px; background: var(--bg-sec); border-top: 1px solid var(--border);
+        }
+        .btn-action-main {
+            width: 100%; padding: 18px; border-radius: 20px; border: none; 
+            background: var(--btn); color: #fff; font-size: 17px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0,122,255,0.2);
         }
     </style>
 </head>
 <body>
 
-<div id="authLoader"><div class="spinner"></div></div>
 <div id="toast">Готово</div>
+
+<!-- Welcome -->
+<div id="welcomeScreen">
+    <div class="welcome-card">
+        <h2 style="margin:0; font-size:26px; font-weight:900;">Route Pro</h2>
+        <div id="userIdBadge" style="margin: 12px 0 24px; color: var(--text-sec); font-size: 13px;">Загрузка...</div>
+        <div style="font-size: 14px; color: var(--text-sec);">Подключение к облаку...</div>
+    </div>
+</div>
 
 <div id="map"></div>
 
-<button id="mainActionBtn" class="main-action-btn" onclick="handleMainAction()" style="display:none;">
-    <span id="actionIcon">📍</span> <span id="actionLabel">Поставить метку</span>
-</button>
-
-<!-- Навигация -->
-<div class="tab-bar" id="navBar" style="display:none;">
-    <div class="tab-item active" onclick="switchTab('map')">
-        <span class="tab-icon">🗺️</span><span>Карта</span>
-    </div>
-    <div class="tab-item" onclick="switchTab('list')">
-        <span class="tab-icon">📋</span><span>Точки</span>
-    </div>
-    <div class="tab-item" onclick="switchTab('settings')">
-        <span class="tab-icon">⚙️</span><span>Опции</span>
-    </div>
+<!-- Floating Controls -->
+<div class="top-nav" id="uiControls" style="display:none">
+    <button id="listPointsBtn" class="btn-glass" onclick="openPointsOrderModal()" style="visibility:hidden; flex-grow: 1;">
+        <span>📋</span> <span id="routeLabelText">Маршрут</span>
+    </button>
+    <button class="btn-glass" onclick="openSettingsModal()">
+        <span>⚙️</span>
+    </button>
 </div>
 
-<div id="dropdownOverlay" class="dropdown-overlay" onclick="closeMenus()"></div>
+<div class="bottom-nav" id="bottomControls">
+    <button id="addMarkerBtn" class="btn-main" onclick="handleAddBtnClick()" style="visibility:hidden">
+        <span id="addText">Добавить новую точку</span>
+    </button>
+</div>
 
-<!-- Модальное окно: Список/Редактирование -->
-<div id="listModal" class="modal" onclick="if(event.target===this) toggleM('listModal')">
+<!-- Overlay & Color Picker -->
+<div id="dropdownOverlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.2); z-index:5999; display:none;" onclick="closeD()"></div>
+<div id="listColorDropdown" class="color-grid"></div>
+
+<!-- Route List Modal -->
+<div id="pointsOrderModal" class="modal" onclick="if(event.target===this) toggleM('pointsOrderModal')">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 id="modalTitle">Маршрут</h3>
-            <button class="close-circle" onclick="toggleM('listModal')">✕</button>
+            <h3 id="orderModalTitle">Маршрут</h3>
+            <button class="close-btn" onclick="toggleM('pointsOrderModal')">✕</button>
         </div>
-        <div class="editor-section" id="pointListContainer"></div>
-        <div style="padding: 16px;">
-            <button class="btn-primary" id="saveCloudBtn" onclick="saveGist()">Сохранить в облако</button>
+        <div class="scroll-area" id="pointsSortList"></div>
+        <div class="btn-save-fixed">
+            <button id="saveInListBtn" class="btn-action-main" onclick="handleModalSave()">
+                <span id="saveBtnText">Сохранить</span>
+            </button>
         </div>
     </div>
 </div>
 
-<!-- Модальное окно: Настройки -->
+<!-- Settings Modal -->
 <div id="settingsModal" class="modal" onclick="if(event.target===this) toggleM('settingsModal')">
     <div class="modal-content">
-        <div class="modal-header"><h3>Настройки</h3><button class="close-circle" onclick="toggleM('settingsModal')">✕</button></div>
-        <div class="editor-section">
-            <p style="font-size: 13px; color: #8e8e93; margin-left: 4px;">ВЫБЕРИТЕ МАРШРУТ</p>
-            <div class="input-group">
-                <select id="routeSelector" onchange="loadRoute(this.value)"></select>
+        <div class="modal-header">
+            <h3>Настройки</h3>
+            <button class="close-btn" onclick="toggleM('settingsModal')">✕</button>
+        </div>
+        <div class="scroll-area">
+            <div class="section-label">Новый маршрут</div>
+            <div style="display:flex; gap:8px; background:#fff; padding:12px; border-radius:20px; border:1px solid var(--border);">
+                <input type="text" id="newRouteName" placeholder="Название..." style="background:transparent; padding:8px;">
+                <button id="btnCreateFile" style="background:var(--btn); color:#fff; border:none; padding:10px 20px; border-radius:14px; font-weight:700;" onclick="handleCreateNew()">Создать</button>
             </div>
-            <button class="btn-outline" style="width: 100%; margin-bottom: 20px;" onclick="toggleM('createRouteModal')">➕ Создать новый</button>
-            
-            <div id="fileActions" style="display:none; border-top: 1px solid var(--border); padding-top: 16px;">
-                <button class="btn-outline" style="width: 100%; margin-bottom: 10px;" onclick="shareActiveRoute()">🔗 Поделиться</button>
-                <div class="btn-danger-text" onclick="deleteActiveRoute()">Удалить текущий маршрут</div>
+
+            <div class="section-label">Ваши файлы</div>
+            <div style="background:#fff; border-radius:24px; border:1px solid var(--border); overflow:hidden;" id="settingsGistList"></div>
+
+            <div id="fileActions" style="display:none; margin-top:20px;">
+                <div class="section-label" id="activeFileNameDisplay">Управление</div>
+                <div style="background:#fff; border-radius:24px; border:1px solid var(--border); overflow:hidden;">
+                    <div class="gist-item" onclick="shareActiveRoute()">
+                        <span>🔗 Копировать ссылку</span>
+                        <span style="color:var(--btn)">→</span>
+                    </div>
+                    <div class="gist-item" onclick="deleteActiveRoute()">
+                        <span style="color:var(--danger)">🗑️ Удалить маршрут</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Модальное окно: Создание файла -->
-<div id="createRouteModal" class="modal" onclick="if(event.target===this) toggleM('createRouteModal')">
-    <div class="modal-content">
-        <div class="modal-header"><h3>Новое название</h3><button class="close-circle" onclick="toggleM('createRouteModal')">✕</button></div>
-        <div class="editor-section">
-            <div class="input-group">
-                <input type="text" id="newRouteName" placeholder="Название (eng/цифры)" oninput="this.value = this.value.replace(/[^a-zA-Z0-9_]/g, '')">
-            </div>
-            <button class="btn-primary" onclick="handleCreateNew()">Создать</button>
-        </div>
-    </div>
-</div>
-
-<!-- Меню выбора цвета -->
-<div id="colorPicker" class="bottom-sheet-menu"></div>
 
 <script>
+// --- LOGIC PRESERVED FROM ORIGINAL ---
 const $ = id => document.getElementById(id), f6 = n => Math.round(n * 1e6) / 1e6, tg = window.Telegram.WebApp, tgU = tg.initDataUnsafe?.user;
 const USER_ID = tgU ? tgU.id : (localStorage.getItem('debug_uid') || "guest_" + Math.random().toString(36).substr(2, 5));
 const USER_NAME = tgU ? (tgU.first_name + (tgU.last_name ? " " + tgU.last_name : "")) : "Guest";
-const COLORS = { Gold: '#FFD700', Blue: '#007AFF', Red: '#FF3B30', Fuchsia: '#AF52DE', Orange: '#FF9500', Purple: '#5856D6', Cyan: '#5AC8FA', Brown: '#A2845E', Lime: '#34C759' };
-const COMMAND_SETS = { Gold: ["На перекрестке повернем налево", "На перекрестке едем прямо", "На перекрестке повернем направо"], Blue: ["Выполним разворот вне перекрестка", "Найдите место для разворота"], Red: ["Разгон до максимальной скорости"], Fuchsia: ["Остановка на подъеме"], Orange: ["Поворачиваем направо", "Поворачиваем налево"], Purple: ["Параллельная парковка"], Cyan: ["Разворот в ограниченном пространстве"], Brown: ["Остановка"], Lime: ["Начинаем движение"] };
+const USER_UNAME = tgU?.username ? `@${tgU.username}` : "", GIST_DESC = `[${USER_ID}] User: ${USER_NAME} ${USER_UNAME}`;
 
-let map, points = [], cur = null, isAdd = false, isDrawing = false, curFile = null, userGistId = null, activeColorTarget = null;
+const COLORS = { 
+    Gold: { hex: '#FFD700', label: 'Маневры' }, 
+    Blue: { hex: '#007AFF', label: 'Разворот' }, 
+    Red: { hex: '#FF3B30', label: 'Разгон' }, 
+    Fuchsia: { hex: '#AF52DE', label: 'Подъем' }, 
+    Orange: { hex: '#FF9500', label: 'Повороты' }, 
+    Purple: { hex: '#5856D6', label: 'Парковка' }, 
+    Cyan: { hex: '#5AC8FA', label: 'Огр. пространство' }, 
+    Brown: { hex: '#A2845E', label: 'Остановка' }, 
+    Lime: { hex: '#34C759', label: 'Старт' } 
+};
+
+const COMMAND_SETS = { 
+    Gold: ["На перекрестке повернем налево", "На перекрестке едем прямо", "На перекрестке повернем направо", "На перекрестке выполним разворот", "На круговом движении первый съезд", "На круговом движении второй съезд", "На круговом движении третий съезд", "На круговом движении четвертый съезд"], 
+    Blue: ["Выполним разворот вне перекрестка", "Выполним разворот в ближайшем разрешенном месте", "Найдите место для разворота и развернитесь"], 
+    Red: ["Выполняем разгон до максимальной скорости", "Набираем максимальную скорость на данном участке дороги", "Разгоняемся до максимальной разрешенной скорости"], 
+    Fuchsia: ["По моей команде выполним остановку и начало движения на подъеме", "Выполняем остановку и начало движения на подъеме"], 
+    Orange: ["Поворачиваем направо", "Поворачиваем налево", "Далее повернем направо", "Далее повернем налево", "На светофоре повернем направо", "На светофоре повернем налево", "Поворачиваем направо к ленте", "Поворачиваем направо на заправку", "Едем в прямом направлении"], 
+    Purple: ["Выполняем параллельную парковку и гараж"], 
+    Cyan: ["Выполняем разворот в ограниченном пространстве", "Выполним разворот в ограниченном пространстве с использованием передачи заднего хода"], 
+    Brown: ["Выполняем остановку параллельно краю проезжей части", "Выполняем остановку в ближайшем разрешенном месте"], 
+    Lime: ["Начинаем движение", "Как будете готовы начинаем движение"] 
+};
+
+let map, points = [], cur = null, isAdd = false, isDrawing = false, curFile = null, userGistId = null, activeListPoint = null, modalMode = 'list', tempNewPointData = null, userLocPlacemark = null;
 
 const showToast = (t) => { const el = $('toast'); el.textContent = t; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2000); };
-const getSvg = (col, txt, az, isEnd) => { 
-    const s = isEnd ? 34 : 40, c = s/2; 
-    return 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}"><g transform="rotate(${az},${c},${c})"><polygon points="${c},2 ${s*0.75},${s-5} ${c},${s*0.65} ${s*0.25},${s-5}" fill="${col}" stroke="#000" stroke-width="1.5"/></g><circle cx="${c}" cy="${c}" r="${isEnd?7:9}" fill="${col}" stroke="#000" stroke-width="1"/><text x="${c}" y="${c+3}" font-size="10" font-family="Arial" font-weight="bold" text-anchor="middle" fill="#000" stroke="#fff" stroke-width="2.5" style="paint-order:stroke fill">${txt}</text></svg>`); 
-};
-
-const api = async (u, m = 'GET', b = null) => { 
-    const t = localStorage.getItem('gh_t_optimized'); if(!t) return null; 
-    const r = await fetch(u, { method: m, headers: { Authorization: `token ${t}`, 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : null }); 
-    return r.ok ? (r.status !== 204 ? r.json() : true) : null; 
-};
+const getSvg = (col, txt, az, isEnd) => { const s = isEnd ? 34 : 40, c = s/2; return 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}"><g transform="rotate(${az},${c},${c})"><polygon points="${c},2 ${s*0.75},${s-5} ${c},${s*0.65} ${s*0.25},${s-5}" fill="${col}" stroke="#000" stroke-width="1.5"/></g><circle cx="${c}" cy="${c}" r="${isEnd?7:9}" fill="${col}" stroke="#000" stroke-width="1"/><text x="${c}" y="${c+3}" font-size="10" font-family="Arial" font-weight="bold" text-anchor="middle" fill="#000" stroke="#fff" stroke-width="2.5" style="paint-order:stroke fill">${txt}</text></svg>`); };
+const getUserLocSvg = () => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#007AFF" stroke="white" stroke-width="3"/><circle cx="12" cy="12" r="11" fill="none" stroke="#007AFF" stroke-width="1" opacity="0.3"/></svg>`);
+const calcA = (p1, p2) => p1 && p2 ? Math.round((Math.atan2(Math.cos(Math.PI/180*p1[0])*(p2[1]-p1[1]), p2[0]-p1[0])*180/Math.PI+360)%360) : 0;
+const api = async (u, m = 'GET', b = null) => { const t = localStorage.getItem('gh_t_optimized'); if(!t) return null; const r = await fetch(u, { method: m, headers: { Authorization: `token ${t}`, 'Content-Type': 'application/json' }, body: b ? JSON.stringify(b) : null }); return r.ok ? (r.status !== 204 ? r.json() : true) : null; };
 
 ymaps.ready(() => {
-    tg.expand();
+    tg.expand(); if (tg.setHeaderColor) tg.setHeaderColor('secondary_bg_color');
+    $('userIdBadge').textContent = `ID: ${USER_ID}`;
     map = new ymaps.Map("map", { center: [56.3399, 43.9332], zoom: 17, type: 'yandex#satellite', controls: [] });
+    userLocPlacemark = new ymaps.Placemark([0,0], {}, { iconLayout: 'default#image', iconImageHref: getUserLocSvg(), iconImageSize: [24,24], iconImageOffset: [-12,-12], zIndex: 5000, visible: false });
+    map.geoObjects.add(userLocPlacemark); initGeolocation();
+    
     map.events.add('click', e => { 
-        if(isAdd) {
-            const p = addP(e.get('coords'));
-            startDrawingForPoint(p);
-            isAdd = false;
+        if(isAdd && tempNewPointData) { 
+            $('addText').textContent = "Рисуйте путь..."; 
+            startDrawingForPoint(addP(e.get('coords'), { ...tempNewPointData })); 
+            tempNewPointData = null; 
+        } 
+    });
+
+    initColorDropdown('listColorDropdown', (h, n) => {
+        if(activeListPoint) {
+            const { point: p, card: c } = activeListPoint; p.color = n; c.querySelector('.color-dot').style.background = h;
+            const sel = c.querySelector('.cmd-select'); updateCommandOptions(sel, n, ""); p.cmd = sel.value;
+            if (p.line) { p.line.options.set('strokeColor', h); updI(p); if(p.pmEnd) updPI(p); } 
+            activeListPoint = null;
         }
     });
 
-    initColorPicker();
-    const t = new URLSearchParams(window.location.search).get('t');
-    if (t) localStorage.setItem('gh_t_optimized', t);
+    new Sortable($('pointsSortList'), { animation: 150, handle: '.sort-handle', ghostClass: 'sortable-ghost', onEnd: reorderPointsFromList });
     
-    if(localStorage.getItem('gh_t_optimized')) handleAuthSilent();
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('t');
+    if (urlToken) localStorage.setItem('gh_t_optimized', urlToken);
+    
+    if(localStorage.getItem('gh_t_optimized')) handleInitialAuth(); 
+    else showToast("Токен не найден");
 });
 
-const handleAuthSilent = async () => {
-    const gists = await api(`https://api.github.com/gists?per_page=100&t=${Date.now()}`);
-    if(gists) {
-        const ex = gists.find(g => g.description?.includes(`[${USER_ID}]`));
-        if(ex) userGistId = ex.id;
-        else {
-            const cr = await api('https://api.github.com/gists', 'POST', { description: `[${USER_ID}] Nav`, public: true, files: { ".init": { content: "1" } } });
-            if(cr) userGistId = cr.id;
-        }
+const initGeolocation = () => { if (navigator.geolocation) navigator.geolocation.watchPosition(p => { if (userLocPlacemark) { userLocPlacemark.geometry.setCoordinates([p.coords.latitude, p.coords.longitude]); userLocPlacemark.options.set('visible', true); }}, null, { enableHighAccuracy: true, maximumAge: 5000 }); };
+
+const handleInitialAuth = async () => { 
+    if(await ensureUserGist()) { 
+        $('welcomeScreen').style.display = 'none'; 
+        $('uiControls').style.display = 'flex'; 
+        $('bottomControls').style.display = 'flex'; 
+        refreshFileList(); 
     }
-    if(userGistId) {
-        $('authLoader').style.display = 'none';
-        $('navBar').style.display = 'flex';
-        $('mainActionBtn').style.display = 'flex';
-        refreshFileList();
-    }
+};
+
+const ensureUserGist = async () => { 
+    if(userGistId) return true; 
+    const gists = await api(`https://api.github.com/gists?per_page=100&t=${Date.now()}`); 
+    if(!gists) return false; 
+    const ex = gists.find(g => g.description?.includes(`[${USER_ID}]`)); 
+    if(ex) { userGistId = ex.id; return true; } 
+    const cr = await api('https://api.github.com/gists', 'POST', { description: GIST_DESC, public: true, files: { ".init": { content: "Init" } } }); 
+    if(cr) { userGistId = cr.id; return true; } 
+    return false; 
 };
 
 const refreshFileList = async () => {
-    const g = await api(`https://api.github.com/gists/${userGistId}?t=${Date.now()}`);
-    const sel = $('routeSelector');
-    sel.innerHTML = '<option value="" disabled selected>Маршрут не выбран</option>';
-    if(g) {
-        Object.keys(g.files).filter(f => f.endsWith('.json')).forEach(f => {
-            sel.innerHTML += `<option value="${f}" ${f === curFile ? 'selected' : ''}>${f.replace('.json','')}</option>`;
-        });
-    }
-    $('fileActions').style.display = curFile ? 'block' : 'none';
+    const cont = $('settingsGistList'); cont.innerHTML = '<div style="padding:20px;text-align:center;color:#8e8e93;">Загрузка...</div>';
+    const g = await api(`https://api.github.com/gists/${userGistId}?t=${Date.now()}`); if(!g) return;
+    const files = Object.keys(g.files).filter(fn => fn.endsWith('.json')); cont.innerHTML = files.length ? '' : '<div style="text-align:center;padding:20px;color:#8e8e93">Нет маршрутов</div>';
+    files.forEach(fn => cont.appendChild(Object.assign(document.createElement('div'), { 
+        className: `gist-item ${curFile === fn ? 'active' : ''}`, 
+        onclick: () => loadRoute(fn), 
+        innerHTML: `<span>${fn.replace('.json','')}</span><span>→</span>` 
+    })));
+    updateVisibility();
 };
 
-const switchTab = (tab) => {
-    document.querySelectorAll('.tab-item').forEach(i => i.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-    if(tab === 'list') openList();
-    if(tab === 'settings') toggleM('settingsModal');
-    if(tab === 'map') closeMenus();
-};
-
-const toggleM = id => {
-    const m = $(id);
-    const isVisible = m.style.display === 'flex';
-    document.querySelectorAll('.modal').forEach(x => x.style.display = 'none');
-    m.style.display = isVisible ? 'none' : 'flex';
-};
-
-const closeMenus = () => {
-    document.querySelectorAll('.modal, .bottom-sheet-menu, .dropdown-overlay').forEach(x => x.style.display = 'none');
-};
-
-const handleMainAction = () => {
-    if(!curFile) { showToast("Сначала выберите маршрут"); switchTab('settings'); return; }
-    if(isDrawing) stopDrawing();
-    else {
-        isAdd = true;
-        $('actionLabel').textContent = "Нажмите на карту";
-        $('mainActionBtn').classList.add('active');
+const updateVisibility = () => {
+    const act = curFile !== null; 
+    $('listPointsBtn').style.visibility = act ? 'visible' : 'hidden'; 
+    $('addMarkerBtn').style.visibility = act ? 'visible' : 'hidden';
+    if(curFile) { 
+        const n = curFile.replace('.json',''); 
+        $('fileActions').style.display = 'block'; 
+        $('activeFileNameDisplay').textContent = `Маршрут: ${n}`; 
+        $('routeLabelText').textContent = n; 
+    } else { 
+        $('fileActions').style.display = 'none'; 
+        $('routeLabelText').textContent = 'Маршрут'; 
     }
 };
 
 const handleCreateNew = async () => {
-    const n = $('newRouteName').value.trim();
-    if(!n) return;
-    if(await api(`https://api.github.com/gists/${userGistId}`, 'PATCH', { files: { [n+'.json']: { content: "[]" } } })) {
-        curFile = n + '.json';
-        toggleM('createRouteModal');
-        await refreshFileList();
-        loadRoute(curFile);
+    const n = $('newRouteName').value.trim(), fn = n + '.json', btn = $('btnCreateFile'); if(!n) return; 
+    btn.disabled = true; btn.textContent = "...";
+    if(await api(`https://api.github.com/gists/${userGistId}`, 'PATCH', { files: { [fn]: { content: "[]" } } })) { 
+        $('newRouteName').value = ''; 
+        setTimeout(() => { refreshFileList(); loadRoute(fn); btn.disabled = false; btn.textContent = "Создать"; }, 500); 
     }
 };
 
 const loadRoute = async (fn) => {
-    curFile = fn;
-    const g = await api(`https://api.github.com/gists/${userGistId}?t=${Date.now()}`);
-    const data = JSON.parse(g.files[fn]?.content || "[]");
+    const g = await api(`https://api.github.com/gists/${userGistId}?t=${Date.now()}`); if(!g) return;
+    const data = JSON.parse(g.files[fn]?.content || "[]"); 
     points.forEach(p => { map.geoObjects.remove(p.pm); map.geoObjects.remove(p.line); if(p.pmEnd) map.geoObjects.remove(p.pmEnd); });
-    points = [];
-    data.forEach(d => addP(d.pts[0], d));
+    points = []; curFile = fn; 
+    data.forEach(d => addP(d.pts[0], d)); 
     if(points.length) map.setCenter(points[0].pts[0]);
-    refreshFileList();
-    showToast("Маршрут загружен");
+    updateVisibility(); showToast(`Загружен: ${fn.replace('.json','')}`);
+};
+
+const deleteActiveRoute = async () => { 
+    if(curFile && confirm(`Удалить ${curFile.replace('.json','')}?`) && await api(`https://api.github.com/gists/${userGistId}`, 'PATCH', { files: { [curFile]: null } })) { 
+        points.forEach(p => { map.geoObjects.remove(p.pm); map.geoObjects.remove(p.line); if(p.pmEnd) map.geoObjects.remove(p.pmEnd); }); 
+        points = []; curFile = null; refreshFileList(); 
+    } 
+};
+
+const shareActiveRoute = () => { 
+    if(!curFile) return; 
+    const link = `t.me/e_ia_bot/nav?startapp=${USER_ID}-${curFile.replace('.json','')}`;
+    const el = document.createElement('textarea'); el.value = link; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); 
+    showToast("Ссылка скопирована"); 
+};
+
+const toggleM = id => { const m = $(id); m.style.display = (m.style.display === 'none' || !m.style.display) ? 'flex' : 'none'; };
+const closeD = () => { $('listColorDropdown').style.display = 'none'; $('dropdownOverlay').style.display = 'none'; };
+const toggleD = id => { const d = $(id), vis = d.style.display === 'flex'; if(!vis) { d.style.display = 'flex'; $('dropdownOverlay').style.display = 'block'; } else closeD(); };
+const openSettingsModal = () => { refreshFileList(); toggleM('settingsModal'); };
+
+const initColorDropdown = (id, cb) => Object.entries(COLORS).forEach(([n, d]) => { 
+    const r = Object.assign(document.createElement('div'), { 
+        className: 'color-option', 
+        onclick: (e) => { e.stopPropagation(); cb(d.hex, n); closeD(); }, 
+        innerHTML: `<div class="swatch" style="background:${d.hex}"></div><div style="font-weight:600;">${d.label}</div>` 
+    }); 
+    $(id).appendChild(r); 
+});
+
+const updateCommandOptions = (sel, col, val = "") => { 
+    sel.innerHTML = ''; 
+    (COMMAND_SETS[col] || ["Без команды"]).forEach(cmd => sel.appendChild(Object.assign(document.createElement('option'), { value: cmd, text: cmd, selected: cmd === val }))); 
 };
 
 function addP(coords, data = null) {
-    const p = {
-        id: data?.id || (points.length + 1),
-        color: data?.color || 'Gold',
-        cmd: data?.cmd || '',
-        comm: data?.comm || '',
-        pts: data?.pts || [coords],
-        pm: new ymaps.Placemark(coords, {}, { iconLayout: 'default#imageWithContent', iconImageSize: [40,40], iconImageOffset: [-20,-20], zIndex: 1000 }),
-        line: new ymaps.Polyline(data?.pts || [coords], {}, { strokeWidth: 5, strokeOpacity: 0.8, zIndex: 500 }),
-        pmEnd: null
+    const p = { 
+        id: data?.id || (points.length + 1), 
+        color: data?.color || 'Gold', 
+        cmd: data?.cmd || '', 
+        comm: data?.comm || '', 
+        pts: data?.pts || [coords], 
+        pm: new ymaps.Placemark(coords, {}, { iconLayout: 'default#imageWithContent', iconImageSize: [40,40], iconImageOffset: [-20,-20], zIndex: 1000 }), 
+        line: new ymaps.Polyline(data?.pts || [coords], {}, { strokeWidth: 5, strokeOpacity: 0.8, zIndex: 500 }), 
+        pmEnd: null 
     };
-    p.line.options.set('strokeColor', COLORS[p.color]);
-    p.pm.events.add('click', () => editPoint(p));
-    map.geoObjects.add(p.pm);
-    map.geoObjects.add(p.line);
-    points.push(p);
-    updVisuals(p);
-    return p;
-}
-
-function updVisuals(p) {
-    const pts = p.line.geometry.getCoordinates();
-    const az = pts.length > 1 ? calcA(pts[0], pts[1]) : 0;
-    p.pm.options.set('iconImageHref', getSvg(COLORS[p.color], p.id, az, false));
-    if(pts.length > 1) {
-        const last = pts[pts.length-1], prev = pts[pts.length-2];
-        if(!p.pmEnd) {
-            p.pmEnd = new ymaps.Placemark(last, {}, { iconLayout: 'default#imageWithContent', iconImageSize: [34,34], iconImageOffset: [-17,-17], interactive: false });
-            map.geoObjects.add(p.pmEnd);
-        }
-        p.pmEnd.geometry.setCoordinates(last);
-        p.pmEnd.options.set('iconImageHref', getSvg(COLORS[p.color], p.id, calcA(prev, last), true));
-    }
-}
-
-const calcA = (p1, p2) => Math.round((Math.atan2(Math.cos(Math.PI/180*p1[0])*(p2[1]-p1[1]), p2[0]-p1[0])*180/Math.PI+360)%360);
-
-const startDrawingForPoint = p => {
-    cur = p; isDrawing = true;
-    $('actionLabel').textContent = "Завершить путь";
-    $('mainActionBtn').classList.remove('active');
-    $('mainActionBtn').classList.add('drawing');
-    p.line.editor.startDrawing();
-};
-
-const stopDrawing = () => {
-    if(cur) {
-        cur.line.editor.stopEditing();
-        cur.pts = cur.line.geometry.getCoordinates().map(c => [f6(c[0]), f6(c[1])]);
-        updVisuals(cur);
-    }
-    isDrawing = false;
-    cur = null;
-    $('actionLabel').textContent = "Поставить метку";
-    $('mainActionBtn').classList.remove('drawing');
-};
-
-function openList() {
-    const container = $('pointListContainer');
-    container.innerHTML = '';
-    $('modalTitle').textContent = "Список точек (" + points.length + ")";
-    points.forEach(p => {
-        const card = document.createElement('div');
-        card.className = 'point-card';
-        card.innerHTML = `
-            <div class="card-row">
-                <div class="point-badge">${p.id}</div>
-                <div class="color-dot" style="background:${COLORS[p.color]}" onclick="openColorPicker(event, ${p.id})"></div>
-                <div class="input-group" style="flex:1; margin-bottom:0;">
-                    <select onchange="updatePCmd(${p.id}, this.value)">
-                        ${(COMMAND_SETS[p.color] || []).map(c => `<option ${p.cmd===c?'selected':''}>${c}</option>`).join('')}
-                    </select>
-                </div>
-            </div>
-            <div class="input-group" style="margin-bottom:0;">
-                <input type="text" placeholder="Заметка..." value="${p.comm}" oninput="updatePComm(${p.id}, this.value)">
-            </div>
-            <div class="card-row">
-                <button class="btn-outline" onclick="deleteP(${p.id})">🗑️ Удал.</button>
-                <button class="btn-outline" onclick="reDraw(${p.id})">🖋️ Путь</button>
-            </div>
-        `;
-        container.appendChild(card);
+    p.line.options.set('strokeColor', COLORS[p.color].hex);
+    p.pm.geometry.events.add('change', () => { const nc = p.pm.geometry.getCoordinates(), pts = p.line.geometry.getCoordinates(); if(pts.length) { pts[0] = nc; p.line.geometry.setCoordinates(pts); } });
+    p.line.geometry.events.add('change', () => { 
+        p.pts = p.line.geometry.getCoordinates().map(pt => [f6(pt[0]), f6(pt[1])]); 
+        if(isDrawing && p.pts.length > 1) $('addText').textContent = "Завершить рисование"; 
+        updI(p); if (p.pts.length > 1) updPI(p); 
     });
-    toggleM('listModal');
+    p.pm.events.add('click', () => { if(!isAdd && !isDrawing) openEditPointModal(p); }); 
+    map.geoObjects.add(p.pm); map.geoObjects.add(p.line); points.push(p); 
+    updI(p); if (p.pts.length > 1) updPI(p); return p;
 }
 
-const updatePCmd = (id, v) => points.find(p => p.id === id).cmd = v;
-const updatePComm = (id, v) => points.find(p => p.id === id).comm = v;
+const startDrawingForPoint = p => { 
+    isDrawing = true; isAdd = false; 
+    $('addText').textContent = "Рисуйте путь..."; $('addMarkerBtn').className = 'btn-main drawing'; 
+    cur = p; p.line.editor.startDrawing(); p.pm.options.set('draggable', true); 
+};
 
-function deleteP(id) {
-    const idx = points.findIndex(p => p.id === id);
-    const p = points[idx];
-    map.geoObjects.remove(p.pm); map.geoObjects.remove(p.line); if(p.pmEnd) map.geoObjects.remove(p.pmEnd);
-    points.splice(idx, 1);
-    points.forEach((x, i) => x.id = i + 1);
-    points.forEach(updVisuals);
-    openList();
+const stopDrawingMode = () => { 
+    if (cur) { cur.pm.options.set('draggable', false); cur.line.editor.stopEditing(); } 
+    isDrawing = false; $('addText').textContent = "Добавить новую точку"; $('addMarkerBtn').className = 'btn-main'; cur = null; 
+};
+
+const handleAddBtnClick = () => { 
+    if(isDrawing) stopDrawingMode(); else if(isAdd) stopAdd(); else openCreatePointModal(); 
+};
+
+const stopAdd = () => { 
+    isAdd = false; tempNewPointData = null; $('addText').textContent = "Добавить новую точку"; 
+    $('addMarkerBtn').className = 'btn-main'; map.setCursor('grab'); 
+};
+
+const updI = p => { p.pm.options.set('iconImageHref', getSvg(COLORS[p.color].hex, p.id, (p.pts?.length >= 2 ? calcA(p.pts[0], p.pts[1]) : 0), false)); };
+
+function updPI(p) { 
+    const pts = p.line.geometry.getCoordinates(); if(!pts.length) return; 
+    const last = pts[pts.length-1], prev = pts[pts.length-2]; 
+    if(!p.pmEnd) { 
+        p.pmEnd = new ymaps.Placemark(last, {}, { iconLayout: 'default#imageWithContent', iconImageSize: [34,34], iconImageOffset: [-17,-17], interactive: false, zIndex: 800 }); 
+        map.geoObjects.add(p.pmEnd); 
+    } else p.pmEnd.geometry.setCoordinates(last); 
+    p.pmEnd.options.set({ iconImageHref: getSvg(COLORS[p.color].hex, p.id, prev ? calcA(prev, last) : 0, true) }); 
 }
 
-function reDraw(id) {
-    toggleM('listModal');
-    const p = points.find(p => p.id === id);
-    p.line.geometry.setCoordinates([p.pts[0]]);
-    startDrawingForPoint(p);
-}
-
-function editPoint(p) {
-    // Быстрый доступ к редактированию конкретной точки
-    openList();
-}
-
-function initColorPicker() {
-    const cp = $('colorPicker');
-    Object.entries(COLORS).forEach(([name, hex]) => {
-        const btn = document.createElement('div');
-        btn.style = `display:flex; align-items:center; gap:15px; padding:15px; border-bottom:1px solid var(--border);`;
-        btn.innerHTML = `<div style="width:24px; height:24px; border-radius:50%; background:${hex}"></div><span style="font-weight:600">${name}</span>`;
-        btn.onclick = () => selectColor(name);
-        cp.appendChild(btn);
+function recalculateIds() {
+    points.forEach((p, i) => { p.id = i + 1; updI(p); if(p.pmEnd) updPI(p); });
+    Array.from($('pointsSortList').children).forEach((c, i) => { 
+        const n = c.querySelector('.badge'); if(n) n.textContent = i + 1; c.dataset.id = i + 1; 
     });
 }
 
-function openColorPicker(e, id) {
-    e.stopPropagation();
-    activeColorTarget = id;
-    $('dropdownOverlay').style.display = 'block';
-    $('colorPicker').style.display = 'flex';
+function createPointCard(p, single = false) {
+    const item = document.createElement('div'); item.className = 'card'; item.dataset.id = p.id;
+    item.innerHTML = `
+        ${!single ? '<div class="sort-handle">☰</div>' : ''}
+        <div class="card-row">
+            <div class="badge">${p.id || '?'}</div>
+            <div class="color-dot" style="background:${COLORS[p.color].hex}"></div>
+            <select class="cmd-select"></select>
+        </div>
+        <textarea rows="2" placeholder="Комментарий...">${p.comm || ''}</textarea>
+        <div class="card-actions">
+            <button class="btn-sub btn-path">🖋️ Путь</button>
+            <button class="btn-sub btn-del" style="color:var(--danger)">🗑️ Удалить</button>
+        </div>`;
+    const sel = item.querySelector('.cmd-select'); updateCommandOptions(sel, p.color, p.cmd);
+    item.querySelector('.color-dot').onclick = e => { e.stopPropagation(); activeListPoint = { point: p, card: item }; toggleD('listColorDropdown'); };
+    sel.onchange = () => p.cmd = sel.value; 
+    item.querySelector('textarea').oninput = e => p.comm = e.target.value;
+    item.querySelector('.btn-del').onclick = () => { if(confirm("Удалить?")) { delPoint(p); if(single) toggleM('pointsOrderModal'); else openPointsOrderModal(); } };
+    item.querySelector('.btn-path').onclick = () => { toggleM('pointsOrderModal'); startEditPath(p); }; 
+    return item;
 }
 
-function selectColor(name) {
-    const p = points.find(p => p.id === activeColorTarget);
-    p.color = name;
-    p.line.options.set('strokeColor', COLORS[name]);
-    p.cmd = COMMAND_SETS[name][0];
-    updVisuals(p);
-    closeMenus();
-    openList();
+function delPoint(p) { points = points.filter(x => x !== p); map.geoObjects.remove(p.pm); map.geoObjects.remove(p.line); if(p.pmEnd) map.geoObjects.remove(p.pmEnd); recalculateIds(); }
+function startEditPath(p) { cur = p; isDrawing = true; $('addText').textContent = "Рисуйте путь..."; $('addMarkerBtn').className = 'btn-main drawing'; p.pm.options.set('draggable', true); p.line.editor.startEditing(); }
+
+function openPointsOrderModal() {
+    modalMode = 'list'; const list = $('pointsSortList'); list.innerHTML = ''; 
+    $('orderModalTitle').textContent = curFile ? curFile.replace('.json', '') : "Маршрут"; 
+    $('saveBtnText').textContent = "Сохранить изменения";
+    if (!points.length) list.innerHTML = '<div style="text-align:center;padding:40px;color:#8e8e93;">Пусто</div>'; 
+    else points.forEach(p => list.appendChild(createPointCard(p))); 
+    toggleM('pointsOrderModal');
+}
+
+function openEditPointModal(p) { 
+    modalMode = 'edit'; $('pointsSortList').innerHTML = ''; 
+    $('orderModalTitle').textContent = `Точка #${p.id}`; 
+    $('saveBtnText').textContent = "Готово"; 
+    $('pointsSortList').appendChild(createPointCard(p, true)); 
+    toggleM('pointsOrderModal'); 
+}
+
+function openCreatePointModal() { 
+    modalMode = 'create'; $('pointsSortList').innerHTML = ''; 
+    $('orderModalTitle').textContent = "Новая точка"; 
+    $('saveBtnText').textContent = "Выбрать на карте"; 
+    tempNewPointData = { id: points.length + 1, color: 'Gold', cmd: COMMAND_SETS.Gold[0], comm: '' }; 
+    $('pointsSortList').appendChild(createPointCard(tempNewPointData, true)); 
+    toggleM('pointsOrderModal'); 
+}
+
+function handleModalSave() {
+    if (modalMode === 'list') saveGist();
+    else if (modalMode === 'edit') toggleM('pointsOrderModal');
+    else if (modalMode === 'create') { 
+        toggleM('pointsOrderModal'); isAdd = true; 
+        $('addMarkerBtn').className = 'btn-main active'; 
+        $('addText').textContent = "Нажмите на карту"; map.setCursor('crosshair'); 
+    }
+}
+
+function reorderPointsFromList() { 
+    points = Array.from($('pointsSortList').children).map(c => points.find(p => p.id === parseInt(c.dataset.id))).filter(p => !!p); 
+    recalculateIds(); 
 }
 
 async function saveGist() {
-    if(!curFile) return;
-    const btn = $('saveCloudBtn');
+    if(!userGistId || !curFile) return; const btn = $('saveInListBtn'); 
     btn.textContent = "Сохранение...";
     const data = points.map(p => ({ id: p.id, color: p.color, pts: p.pts, cmd: p.cmd, comm: p.comm }));
-    if(await api(`https://api.github.com/gists/${userGistId}`, 'PATCH', { files: { [curFile]: { content: JSON.stringify(data) } } })) {
-        showToast("Облако обновлено");
-        btn.textContent = "Сохранить в облако";
+    if(await api(`https://api.github.com/gists/${userGistId}`, 'PATCH', { files: { [curFile]: { content: JSON.stringify(data, null, 2) } } })) { 
+        showToast("Облако обновлено"); toggleM('pointsOrderModal'); 
     }
+    btn.textContent = "Сохранить";
 }
 </script>
 </body>

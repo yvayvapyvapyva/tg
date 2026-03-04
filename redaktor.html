@@ -14,8 +14,35 @@
         [class*="-copyrights-pane"], [class*="-controls-pane"] { display: none !important; }
         #welcomeScreen { position: fixed; inset: 0; z-index: 5000; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px; }
         .welcome-card { background: var(--card); width: 100%; max-width: 320px; padding: 30px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); text-align: center; }
-        .top-controls { position: absolute; top: calc(env(safe-area-inset-top) + 15px); left: 15px; right: 15px; z-index: 2000; display: flex; justify-content: space-between; pointer-events: none; }
-        .btn-top { background: rgba(255,255,255,0.9); color: var(--text); padding: 8px 14px; border-radius: 20px; font-weight: 600; border: 1px solid var(--border); backdrop-filter: blur(10px); pointer-events: auto; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+        
+        /* Обновленные верхние элементы управления */
+        .top-controls { 
+            position: absolute; 
+            top: calc(env(safe-area-inset-top) + 60px); /* Увеличен отступ сверху для обхода кнопок TG */
+            left: 15px; 
+            right: 15px; 
+            z-index: 2000; 
+            display: flex; 
+            justify-content: space-between; 
+            pointer-events: none; 
+        }
+        .btn-top { 
+            background: rgba(255,255,255,0.95); 
+            color: var(--text); 
+            padding: 12px 18px; /* Увеличено для удобства нажатия */
+            border-radius: 24px; 
+            font-weight: 600; 
+            border: 1px solid var(--border); 
+            backdrop-filter: blur(10px); 
+            pointer-events: auto; 
+            font-size: 15px; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-height: 48px; /* Стандарт для пальца */
+        }
+        
         .bottom-center-controls { position: absolute; bottom: calc(20px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 2000; display: none; width: 90%; max-width: 400px; }
         .btn-add-main { background: var(--btn); color: #fff; padding: 16px; border-radius: 16px; font-weight: 700; border: none; width: 100%; font-size: 16px; box-shadow: 0 8px 24px rgba(0,122,255,0.3); }
         .btn-add-main.active { background: var(--danger); }
@@ -44,7 +71,14 @@
 <div id="toast"></div>
 <div id="welcomeScreen"><div class="welcome-card"><h2 style="margin-bottom:5px">Route Editor</h2><div id="userIdBadge" style="color:#8e8e93;font-size:12px;margin-bottom:20px">Загрузка...</div><div style="font-size:14px;color:#8e8e93">Авторизация...</div></div></div>
 <div id="map"></div>
-<div class="top-controls" id="uiControls" style="display:none"><button id="listPointsBtn" class="btn-top" onclick="openPointsOrderModal()" style="visibility:hidden"><span>📋</span> <span id="routeLabelText">Маршрут</span></button><button class="btn-top" onclick="openSettingsModal()"><span>⚙️</span></button></div>
+<div class="top-controls" id="uiControls" style="display:none">
+    <button id="listPointsBtn" class="btn-top" onclick="openPointsOrderModal()" style="visibility:hidden">
+        <span>📋</span> <span id="routeLabelText">Маршрут</span>
+    </button>
+    <button class="btn-top" onclick="openSettingsModal()" style="padding: 12px 16px;">
+        <span>⚙️ Настройки</span>
+    </button>
+</div>
 <div class="bottom-center-controls" id="bottomControls"><button id="addMarkerBtn" class="btn-add-main" onclick="handleAddBtnClick()" style="visibility:hidden"><span id="addText">Добавить точку</span></button></div>
 
 <div id="pointsOrderModal" class="modal" onclick="if(event.target===this) toggleM('pointsOrderModal')"><div class="modal-content"><div class="modal-header"><h3 id="orderModalTitle" style="margin:0">Маршрут</h3><button style="background:none;border:none;font-size:20px" onclick="toggleM('pointsOrderModal')">✕</button></div><div class="editor-section" id="pointsSortList"></div><div style="padding:15px"><button id="saveInListBtn" class="btn-action" style="background:var(--success)" onclick="handleModalSave()"><span id="saveBtnText">Сохранить</span></button></div></div></div>
@@ -85,6 +119,7 @@ const deleteActiveRoute = async () => { if(confirm("Удалить?") && await a
 const toggleM = id => { const m=$(id); m.style.display = (m.style.display==='none'||!m.style.display)?'flex':'none'; };
 const closeD = () => { $('listColorDropdown').style.display='none'; $('dropdownOverlay').style.display='none'; };
 const toggleD = () => { $('listColorDropdown').style.display='flex'; $('dropdownOverlay').style.display='block'; };
+const openSettingsModal = () => { toggleM('settingsModal'); refreshFileList(); };
 
 function addP(coords, data=null) {
     const p = { id: data?.id||(points.length+1), color: data?.color||'Gold', cmd: data?.cmd||'', comm: data?.comm||'', pts: data?.pts||[coords], pm: new ymaps.Placemark(coords, {}, { iconLayout:'default#imageWithContent', iconImageSize:[38,38], iconImageOffset:[-19,-19] }), line: new ymaps.Polyline(data?.pts||[coords], {}, { strokeWidth:4, strokeColor:COLORS[data?.color||'Gold'] }), pmEnd: null };
